@@ -15,24 +15,42 @@
   "dependencies": {
     "body-parser": "^1.19.0",
     "compression": "^1.7.4",
-    "debug": "^3.1.0",
-    "dotenv": "^8.0.0",
+    "debug": "^4.3.1",
+    "dotenv": "^10.0.0",
     "etag": "^1.8.1",
     "express": "^4.17.1",
-    "express-fileupload": "0.0.5",
-    "helmet": "^3.18.0",
+    "express-fileupload": "^1.2.1",
+    "helmet": "^4.6.0",
     "jsonwebtoken": "^8.5.1",
-    "morgan": "^1.9.0",
-    "passport": "^0.4.0",
+    "morgan": "^1.10.0",
+    "passport": "^0.4.1",
     "passport-facebook": "^3.0.0",
-    "passport-github2": "^0.1.11",
+    "passport-github2": "^0.1.12",
     "passport-google-oauth": "^2.0.0",
+    "passport-oauth2": "^1.5.0",
     "passport-jwt": "^4.0.0",
     "passport-twitter": "^1.0.4",
-    "pg": "^6.1.6",
-    "promise": "^7.3.1",
+    "pg": "^8.6.0",
+    "promise": "^8.1.0",
     "stream-buffers": "^3.0.2",
-    "tar": "^4.4.10",
+    "tar": "^6.1.0",
     "xml": "~1.0.1"
+  },
+  "eslintConfig": {
+    "root": true,
+    "env": {
+      "node": true
+    },
+    "extends": [
+      "plugin:vue/essential",
+      "eslint:recommended",
+      "@vue/typescript/recommended",
+      "@vue/prettier",
+      "@vue/prettier/@typescript-eslint"
+    ],
+    "parserOptions": {
+      "ecmaVersion": 2020
+    },
+    "rules": {}
   }
 }
