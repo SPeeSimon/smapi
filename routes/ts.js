@@ -7,20 +7,20 @@ var Promise = require("promise");
 function GetStatus(url) {
   return new Promise(function (accept, reject) {
     http
-      .get(url + "/.dirindex", function (res) {
-        if (res.statusCode !== 200) {
-          res.resume();
+      .get(url + "/.dirindex", function (response) {
+        if (response.statusCode !== 200) {
+          response.resume();
           return reject("Not found");
         }
 
-        res.setEncoding("utf8");
+        response.setEncoding("utf8");
         var data = "";
 
-        res.on("data", function (chunk) {
+        response.on("data", function (chunk) {
           data += chunk;
         });
 
-        res.on("end", function () {
+        response.on("end", function () {
           accept({ url: url, data: data });
         });
       })
@@ -69,7 +69,7 @@ function ParseDirindex(txt) {
   return reply;
 }
 
-router.get("/status/", function (req, res, next) {
+router.get("/status/", function (request, response, next) {
   var dnsname = "terrasync.flightgear.org";
 
   console.log("fetch status");
@@ -78,7 +78,7 @@ router.get("/status/", function (req, res, next) {
     console.log("dns resovled", err, addresses);
     if (err) {
       console.log(err);
-      res.render("error", {});
+      response.render("error", {});
       return;
     }
 
@@ -101,11 +101,13 @@ router.get("/status/", function (req, res, next) {
       };
       values.forEach(function (value) {
         addresses.forEach(function (addr) {
-          if (addr.url === value.url) addr.dirindex = ParseDirindex(value.data);
+          if (addr.url === value.url) {
+            addr.dirindex = ParseDirindex(value.data);
+          }
         });
       });
 
-      res.render("tsstatus", {
+      response.render("tsstatus", {
         title: "Terrasync Status",
         dns: addresses,
         domainname: dnsname,

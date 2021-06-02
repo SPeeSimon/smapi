@@ -10,7 +10,6 @@ var pool = new pg.Pool({
   idleTimeoutMillis: 3000, // how long a client is allowed to remain idle before being closed
 });
 
-
 pool.on("error", function (err, client) {
   // if an error is encountered by a client while it sits idle in the pool
   // the pool itself will emit an error event with both the error and
@@ -21,26 +20,22 @@ pool.on("error", function (err, client) {
   console.error("WARNING: idle client received error", err.messag);
 });
 
-
-function Query(options, cb) {
-  pool.connect((err, client, done) => {
-    if (err) {
-      console.error("error fetching client from pool", err);
-      return cb(err);
-    }
-
-    client.query(options, function (err, result) {
-      //call `done()` to release the client back to the pool
-      done();
-
-      if (err) {
-        console.error("error running query", err);
-        return cb(err);
-      }
-
-      return cb(null, result);
-    });
-  });
+function Query(options, callback) {
+  if (callback) {
+    return pool
+    .query(options)
+    .catch((error) => {
+      console.error("error running query", error);
+      return callback(error);
+    })
+    .then((result) => callback(null, result));    
+  }
+  return pool
+    .query(options)
+    .catch(error => {
+      console.error("error running query", error);
+      throw error;
+    })
 }
 
 module.exports = Query;

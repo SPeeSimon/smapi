@@ -5,68 +5,68 @@ const util = require("util");
 
 var router = express.Router();
 
-function toNumber(x) {
-  var n = Number(x || 0);
-  return isNaN(n) ? 0 : n;
-}
-
-router.get("/:id/tgz", function (req, res, next) {
-  var id = Number(req.params.id || 0);
+router.get("/:id/tgz", function (request, response, next) {
+  var id = Number(request.params.id || 0);
   if (isNaN(id)) {
-    return res.status(500).send("Invalid Request");
+    return response.status(500).send("Invalid Request");
   }
 
-  Query(
-    {
-      name: "ModelsTarball",
-      text: "select mo_modelfile from fgs_models where mo_id = $1",
-      values: [id],
-    },
-    function (err, result) {
-      if (err) return res.status(500).send("Database Error");
-      if (0 == result.rows.length) return res.status(404).send("model not found");
-      if (result.rows[0].mo_modelfile == null) return res.status(404).send("no modelfile");
+  Query({
+    name: "ModelsTarball",
+    text: "select mo_path, mo_modelfile from fgs_models where mo_id = $1",
+    values: [id],
+  })
+    .then((result) => {
+      if (0 == result.rows.length) {
+        return response.status(404).send("model not found");
+      }
+      if (result.rows[0].mo_modelfile == null) {
+        return response.status(404).send("no modelfile");
+      }
 
-      var buf = new Buffer(result.rows[0].mo_modelfile, "base64");
-      res.writeHead(200, { "Content-Type": "application/gzip" });
-      //Response.AppendHeader("content-disposition", "attachment; filename=\"" + fileName +"\"");
-      res.end(buf);
-    }
-  );
+      var buf = Buffer.from(result.rows[0].mo_modelfile, "base64");
+      response.writeHead(200, {
+        "Content-Type": "application/gzip",
+        "Content-Disposition": `attachment; filename="${result.rows[0].mo_path}"`,
+      });
+      response.end(buf);
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
 });
 
-function getThumb(req, res, next) {
-  var id = Number(req.params.id || 0);
+function getThumb(request, response, next) {
+  var id = Number(request.params.id || 0);
   if (isNaN(id)) {
-    return res.status(500).send("Invalid Request");
+    return response.status(500).send("Invalid Request");
   }
 
-  Query(
-    {
-      name: "ModelsThumb",
-      text: "select mo_thumbfile,mo_modified from fgs_models where mo_id = $1",
-      values: [id],
-    },
-    function (err, result) {
-      if (err) {
-        return res.status(500).send("Database Error");
-      }
-
+  Query({
+    name: "ModelsThumb",
+    text: "select mo_thumbfile,mo_modified from fgs_models where mo_id = $1",
+    values: [id],
+  })
+    .then((result) => {
       if (0 == result.rows.length) {
-        return res.status(404).send("model not found");
+        return response.status(404).send("model not found");
       }
 
-      if (result.rows[0].mo_thumbfile == null) return res.status(404).send("no thumbfile");
+      if (result.rows[0].mo_thumbfile == null) {
+        return response.status(404).send("no thumbfile");
+      }
 
-      var buf = new Buffer(result.rows[0].mo_thumbfile, "base64");
-      res.writeHead(200, {
+      var buf = Buffer.from(result.rows[0].mo_thumbfile, "base64");
+      response.writeHead(200, {
         "Content-Type": "image/jpeg",
         "Last-Modified": result.rows[0].mo_modified,
         //      'ETag': etag(buf),
       });
-      res.end(buf);
-    }
-  );
+      response.end(buf);
+    })
+    .catch((err) => {
+      response.status(500).send("Database Error");
+    });
 }
 
 router.get("/:id/thumb", getThumb);
@@ -93,62 +93,63 @@ MultiStream.prototype._read = function () {
   this._object = null;
 };
 
-router.get("/:id/positions", function (req, res, next) {
-  var id = Number(req.params.id || 0);
+router.get("/:id/positions", function (request, response, next) {
+  var id = Number(request.params.id || 0);
   if (isNaN(id)) {
-    return res.status(500).send("Invalid Request");
+    return response.status(500).send("Invalid Request");
   }
 
-  Query(
-    {
-      name: "ModelPositions",
-      text: "select ob_id, ST_AsGeoJSON(wkb_geometry),ob_country,ob_gndelev from fgs_objects where ob_model = $1 order by ob_country",
-      values: [id],
-    },
-    function (err, result) {
-      if (err) {
-        return res.status(500).send("Database Error");
-      }
+  Query({
+    name: "ModelPositions",
+    text: "select ob_id, ob_model, ST_AsGeoJSON(wkb_geometry),ob_country,ob_gndelev \
+            from fgs_objects \
+            where ob_model = $1 \
+            order by ob_country",
+    values: [id],
+  })
+    .then((result) => {
       var featureCollection = {
         type: "FeatureCollection",
-        features: [],
+        features: result.rows.map(rowToModelPositionFeature),
+        model: id,
       };
-      result.rows.forEach(function (r) {
-        featureCollection.features.push({
-          type: "Feature",
-          geometry: JSON.parse(r.st_asgeojson),
-          id: r.ob_id,
-          properties: {
-            id: r.ob_id,
-            gndelev: r.ob_gndelev,
-            country: r.ob_country,
-          },
-        });
-      });
-      return res.json(featureCollection);
-    }
-  );
+      return response.json(featureCollection);
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
 });
 
-router.get("/:id", function (req, res, next) {
-  var id = Number(req.params.id || 0);
+function rowToModelPositionFeature(row) {
+  return {
+    type: "Feature",
+    geometry: JSON.parse(row.st_asgeojson),
+    id: row.ob_id,
+    properties: {
+      id: row.ob_id,
+      gndelev: row.ob_gndelev,
+      country: row.ob_country,
+    },
+  };
+}
+
+router.get("/:id", function (request, response, next) {
+  var id = Number(request.params.id || 0);
   if (isNaN(id)) {
-    return res.status(500).send("Invalid Request");
+    return response.status(500).send("Invalid Request");
   }
 
-  Query(
-    {
-      name: "ModelDetail",
-      text: "select mo_id,mo_path,mo_modified,mo_author,mo_name,mo_notes,mo_modelfile,mo_shared,au_name from fgs_models left join fgs_authors on mo_author=au_id where mo_id = $1",
-      values: [id],
-    },
-    function (err, result) {
-      if (err) {
-        return res.status(500).send("Database Error");
-      }
-
+  Query({
+    name: "ModelDetail",
+    text: "select mo_id,mo_path,mo_modified,mo_author,mo_name,mo_notes,mo_modelfile,mo_shared,au_name \
+          from fgs_models \
+          left join fgs_authors on mo_author=au_id \
+          where mo_id = $1",
+    values: [id],
+  })
+    .then((result) => {
       if (0 == result.rows.length) {
-        return res.status(404).send("model not found");
+        return response.status(404).send("model not found");
       }
 
       var row = result.rows[0];
@@ -164,9 +165,9 @@ router.get("/:id", function (req, res, next) {
         authorId: row.mo_author,
         content: [],
       };
-      var streambuf = new MultiStream(new Buffer(result.rows[0].mo_modelfile, "base64"));
+      var streambuf = new MultiStream(Buffer.from(result.rows[0].mo_modelfile, "base64"));
       streambuf.on("end", (a) => {
-        res.json(ret);
+        response.json(ret);
       });
 
       streambuf.pipe(
@@ -179,8 +180,10 @@ router.get("/:id", function (req, res, next) {
           },
         })
       );
-    }
-  );
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
 });
 
 module.exports = router;

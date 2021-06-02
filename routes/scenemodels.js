@@ -1,9 +1,5 @@
 const express = require("express");
 const Query = require("../pg");
-const tar = require("tar");
-const streamBuffers = require("stream-buffers");
-const etag = require("etag");
-const zlib = require("zlib");
 const util = require("util");
 
 var router = express.Router();
@@ -27,158 +23,118 @@ var selectNavaidsWithinSql =
            WHERE ST_Within(na_position, ST_GeomFromText($1,4326)) \
            LIMIT 400";
 
-router.get("/signs/", function (req, res, next) {
-  var east = toNumber(req.query.e);
-  var west = toNumber(req.query.w);
-  var north = toNumber(req.query.n);
-  var south = toNumber(req.query.s);
+router.get("/signs/", function (request, response, next) {
+  var east = toNumber(request.query.e);
+  var west = toNumber(request.query.w);
+  var north = toNumber(request.query.n);
+  var south = toNumber(request.query.s);
 
-  Query(
-    {
-      name: "Select Signs Within",
-      text: selectSignsWithinSql,
-      values: [
-        util.format("POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))", west, south, west, north, east, north, east, south, west, south),
-      ],
-    },
-    function (err, result) {
-      if (err) {
-        return res.status(500).send("Database Error");
-      }
-
-      var features = [];
-      if (result.rows)
-        result.rows.forEach(function (row) {
-          features.push({
-            type: "Feature",
-            id: row["si_id"],
-            geometry: {
-              type: "Point",
-              coordinates: [row["ob_lon"], row["ob_lat"]],
-            },
-            properties: {
-              id: row["si_id"],
-              heading: row["si_heading"],
-              definition: row["si_definition"],
-              gndelev: row["si_gndelev"],
-            },
-          });
-        });
-
-      res.json({
+  Query({
+    name: "Select Signs Within",
+    text: selectSignsWithinSql,
+    values: [
+      util.format("POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))", west, south, west, north, east, north, east, south, west, south),
+    ],
+  })
+    .then((result) => {
+      response.json({
         type: "FeatureCollection",
-        features: features,
+        features: result.rows.map(rowToSignsFeature),
       });
-    }
-  );
-});
-
-router.get("/navaids/within/", function (req, res, next) {
-  var east = toNumber(req.query.e);
-  var west = toNumber(req.query.w);
-  var north = toNumber(req.query.n);
-  var south = toNumber(req.query.s);
-
-  Query(
-    {
-      name: "Select Navaids Within",
-      text: selectNavaidsWithinSql,
-      values: [
-        util.format("POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))", west, south, west, north, east, north, east, south, west, south),
-      ],
-    },
-    function (err, result) {
-      if (err) {
-        return res.status(500).send("Database Error");
-      }
-
-      var features = [];
-      if (result.rows)
-        result.rows.forEach(function (row) {
-          features.push({
-            type: "Feature",
-            id: row["si_id"],
-            geometry: {
-              type: "Point",
-              coordinates: [row["na_lon"], row["na_lat"]],
-            },
-            properties: {
-              id: row["na_id"],
-              type: row["na_type"],
-              elevation: row["na_elevation"],
-              frequency: row["na_frequency"],
-              range: row["na_range"],
-              multiuse: row["na_multiuse"],
-              ident: row["na_ident"],
-              name: row["na_name"],
-              airport: row["na_airport_id"],
-              runway: row["na_runway"],
-            },
-          });
-        });
-
-      res.json({
-        type: "FeatureCollection",
-        features: features,
-      });
-    }
-  );
-});
-
-router.get("/modelgroup/:id?", function (req, res, next) {
-  var QueryArgs = req.params.id
-    ? {
-        name: "ModelGroupsRead",
-        text: "select mg_id, mg_name from fgs_modelgroups where mg_id = $1",
-        values: [toNumber(req.params.id)],
-      }
-    : {
-        name: "ModelGroupsReadAll",
-        text: "select mg_id, mg_name from fgs_modelgroups order by mg_id",
-      };
-  Query(QueryArgs, function (err, result) {
-    if (err) {
-      return res.status(500).send("Database Error");
-    }
-
-    var j = [];
-    result.rows.forEach(function (row) {
-      j.push({
-        id: row.mg_id,
-        name: row.mg_name,
-      });
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
     });
-    res.json(j);
-  });
 });
 
-router.get("/navdb/airport/:icao", function (req, res, next) {
-  if (!req.params.icao.match(/^[A-Za-z0-9]*$/)) {
-    return res.json({});
-  }
-  Query(
-    {
-      name: "ModelsSearchByAuthor",
-      //      text: "SELECT pr_id, pr_runways, pr_name, pr_type FROM fgs_procedures WHERE pr_airport = UPPER($1);",
-      text: "select ST_AsGeoJSON(wkb_geometry) as rwy from apt_runway where icao=UPPER($1);",
-      values: [req.params.icao],
+function rowToSignsFeature(row) {
+  return {
+    type: "Feature",
+    id: row["si_id"],
+    geometry: {
+      type: "Point",
+      coordinates: [row["ob_lon"], row["ob_lat"]],
     },
-    function (err, result) {
-      if (err) return res.status(500).send("Database Error");
+    properties: {
+      id: row["si_id"],
+      heading: row["si_heading"],
+      definition: row["si_definition"],
+      gndelev: row["si_gndelev"],
+    },
+  };
+}
 
+function rowToNavaidFeature(row) {
+  return {
+    type: "Feature",
+    id: row["si_id"],
+    geometry: {
+      type: "Point",
+      coordinates: [row["na_lon"], row["na_lat"]],
+    },
+    properties: {
+      id: row["na_id"],
+      type: row["na_type"],
+      elevation: row["na_elevation"],
+      frequency: row["na_frequency"],
+      range: row["na_range"],
+      multiuse: row["na_multiuse"],
+      ident: row["na_ident"],
+      name: row["na_name"],
+      airport: row["na_airport_id"],
+      runway: row["na_runway"],
+    },
+  };
+}
+
+router.get("/navaids/within/", function (request, response, next) {
+  var east = toNumber(request.query.e);
+  var west = toNumber(request.query.w);
+  var north = toNumber(request.query.n);
+  var south = toNumber(request.query.s);
+
+  Query({
+    name: "Select Navaids Within",
+    text: selectNavaidsWithinSql,
+    values: [
+      util.format("POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))", west, south, west, north, east, north, east, south, west, south),
+    ],
+  })
+    .then((result) => {
+      response.json({
+        type: "FeatureCollection",
+        features: result.rows.map(rowToNavaidFeature),
+      });
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
+});
+
+
+router.get("/navdb/airport/:icao", function (request, response, next) {
+  if (!request.params.icao.match(/^[A-Za-z0-9]*$/)) {
+    return response.json({});
+  }
+  Query({
+    name: "ModelsSearchByAuthor",
+    //      text: "SELECT pr_id, pr_runways, pr_name, pr_type FROM fgs_procedures WHERE pr_airport = UPPER($1);",
+    text: "select ST_AsGeoJSON(wkb_geometry) as rwy from apt_runway where icao=UPPER($1);",
+    values: [request.params.icao],
+  })
+    .then((result) => {
       var j = {
         runwaysGeometry: {
           type: "GeometryCollection",
-          geometries: [],
+          geometries: result.rows.map((row) => JSON.parse(row.rwy)),
         },
         procedures: [],
       };
-      result.rows.forEach(function (row) {
-        j.runwaysGeometry.geometries.push(JSON.parse(row.rwy));
-      });
-      res.json(j);
-    }
-  );
+      response.json(j);
+    })
+    .catch((error) => {
+      return response.status(500).send("Database Error");
+    });
 });
 
 module.exports = router;

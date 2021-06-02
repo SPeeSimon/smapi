@@ -11,22 +11,21 @@ function toNumber(x) {
 }
 
 const unzip = util.promisify(zlib.unzip);
-router.get("/", function (req, res, next) {
-  Query(
-    {
-      name: "GetAllSubmissions",
-      text: "SELECT spr_id,spr_hash,spr_base64_sqlz FROM fgs_position_requests ORDER BY spr_id ASC;",
-      values: [],
-    },
-    function (err, result) {
-      if (err) return res.status(500).send("Database Error");
-      if (!(result && result.rows)) return res.json([]);
+router.get("/", function (request, response, next) {
+  Query({
+    name: "GetAllSubmissions",
+    text: "SELECT spr_id,spr_hash,spr_base64_sqlz \
+          FROM fgs_position_requests \
+          ORDER BY spr_id ASC;",
+    values: [],
+  })
+    .then((result) => {
+      if (result.rows.length === 0) {
+        return response.json([]);
+      }
 
       let submissions = [];
-      let proms = [];
-      result.rows.forEach((row) => {
-        proms.push(unzip(Buffer.from(row["spr_base64_sqlz"], "base64")));
-      });
+      let proms = result.rows.map((row) => unzip(Buffer.from(row["spr_base64_sqlz"], "base64")));
 
       Promise.all(proms)
         .then((data) => {
@@ -36,29 +35,35 @@ router.get("/", function (req, res, next) {
               // hash: result.rows[idx]['spr_hash'],
               data: JSON.parse(s.toString()),
             };
-            if (submission.data && submission.data.email) delete submission.data.email;
+            if (submission.data && submission.data.email) {
+              delete submission.data.email;
+            }
             submissions.push(submission);
           });
-          res.json(submissions);
+          response.json(submissions);
         })
         .catch((err) => {
           console.error(err);
-          res.sendStatus(500);
+          response.sendStatus(500);
         });
-    }
-  );
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
 });
 
-router.get("/:id", function (req, res, next) {
-  Query(
-    {
-      name: "GetSubmissionsById",
-      text: "SELECT spr_id,spr_hash,spr_base64_sqlz FROM fgs_position_requests WHERE spr_id=$1;",
-      values: [toNumber(req.params.id)],
-    },
-    function (err, result) {
-      if (err) return res.status(500).send("Database Error");
-      if (!(result && result.rows && result.rows.length)) return res.status(404).send("Submission not found");
+router.get("/:id", function (request, response, next) {
+  Query({
+    name: "GetSubmissionsById",
+    text: "SELECT spr_id,spr_hash,spr_base64_sqlz \
+          FROM fgs_position_requests \
+          WHERE spr_id=$1;",
+    values: [toNumber(request.params.id)],
+  })
+    .then((result) => {
+      if (result.rows.length === 0) {
+        return response.status(404).send("Submission not found");
+      }
 
       const row = result.rows[0];
       unzip(Buffer.from(row["spr_base64_sqlz"], "base64"))
@@ -68,15 +73,19 @@ router.get("/:id", function (req, res, next) {
             // hash: row['spr_hash'],
             data: JSON.parse(data.toString()),
           };
-          if (submission.data && submission.data.email) delete submission.data.email;
-          res.json(submission);
+          if (submission.data && submission.data.email) {
+            delete submission.data.email;
+          }
+          response.json(submission);
         })
         .catch((err) => {
           console.error(err);
-          res.sendStatus(500);
+          response.sendStatus(500);
         });
-    }
-  );
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
 });
 
 module.exports = router;

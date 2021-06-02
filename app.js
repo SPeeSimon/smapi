@@ -11,7 +11,6 @@ const app = express();
 const passport = require("passport");
 require("./config/passport")(passport); // pass passport for configuration
 
-
 const allowCrossDomain = function (req, res, next) {
   res.header("Access-Control-Allow-Origin", "*");
   res.header("Access-Control-Allow-Methods", "GET,PUT,POST,DELETE,OPTIONS");
@@ -38,17 +37,19 @@ app.use(
 app.use(passport.initialize());
 
 //for local debugging only
-if (process.env.node_env === "development") app.use(express.static("../smweb2/html"));
+if (process.env.node_env === "development") {
+  app.use(express.static("../smweb2/html"));
+}
 
 //app.use('/', require('./routes/far'));
 //app.use('/ts', require('./routes/ts'));
 app.use("/scenemodels/author", require("./routes/authors"));
-app.use("/scenemodels/submission", require("./routes/submission"));
-app.use("/scenemodels/modelgroups", require("./routes/modelgroups"));
-app.use("/scenemodels/stats", require("./routes/stats"));
-app.use("/scenemodels/objects", require("./routes/objects"));
 app.use("/scenemodels/model", require("./routes/model"));
 app.use("/scenemodels/models", require("./routes/models"));
+app.use("/scenemodels/modelgroups", require("./routes/modelgroups"));
+app.use("/scenemodels/objects", require("./routes/objects"));
+app.use("/scenemodels/stats", require("./routes/stats"));
+app.use("/scenemodels/submission", require("./routes/submission"));
 app.use("/scenemodels", require("./routes/scenemodels"));
 app.use("/auth", require("./routes/auth")(passport));
 
