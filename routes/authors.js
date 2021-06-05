@@ -9,10 +9,17 @@ function toNumber(x) {
 }
 
 function rowtoAuthor(row) {
+  if (row.au_notes == null) {
+    return {
+      id: row.au_id,
+      name: row.au_name,
+      models: row.count,
+    };
+  }
   return {
     id: row.au_id,
     name: row.au_name,
-    notes: row.au_notes,
+    notes: row.au_notes || "",
     models: row.count,
   };
 }
