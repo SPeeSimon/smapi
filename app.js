@@ -52,6 +52,8 @@ app.use("/scenemodels/stats", require("./routes/stats"));
 app.use("/scenemodels/submission", require("./routes/submission"));
 app.use("/scenemodels", require("./routes/scenemodels"));
 app.use("/news", require("./routes/news"));
+app.use("/rss/news", require("./routes/rss/news"));
+app.use("/rss/models", require("./routes/rss/models"));
 app.use("/auth", require("./routes/auth")(passport));
 
 process.on("SIGTERM", () => {
