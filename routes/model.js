@@ -3,6 +3,7 @@ const Query = require("../pg");
 const tar = require("tar");
 const util = require("util");
 
+var stream = require("stream");
 var router = express.Router();
 
 router.get("/:id/tgz", function (request, response, next) {
@@ -13,7 +14,7 @@ router.get("/:id/tgz", function (request, response, next) {
 
   Query({
     name: "ModelsTarball",
-    text: "select mo_path, mo_modelfile from fgs_models where mo_id = $1",
+    text: "select mo_path, mo_modelfile, mo_modified from fgs_models where mo_id = $1",
     values: [id],
   })
     .then((result) => {
@@ -28,6 +29,7 @@ router.get("/:id/tgz", function (request, response, next) {
       response.writeHead(200, {
         "Content-Type": "application/gzip",
         "Content-Disposition": `attachment; filename="${result.rows[0].mo_path}"`,
+        "Last-Modified": result.rows[0].mo_modified,
       });
       response.end(buf);
     })
@@ -60,7 +62,6 @@ function getThumb(request, response, next) {
       response.writeHead(200, {
         "Content-Type": "image/jpeg",
         "Last-Modified": result.rows[0].mo_modified,
-        //      'ETag': etag(buf),
       });
       response.end(buf);
     })
@@ -72,7 +73,7 @@ function getThumb(request, response, next) {
 router.get("/:id/thumb", getThumb);
 router.get("/:id/thumb.jpg", getThumb);
 
-var stream = require("stream");
+
 var MultiStream = function (object, options) {
   if (object instanceof Buffer || typeof object === "string") {
     options = options || {};
@@ -141,9 +142,10 @@ router.get("/:id", function (request, response, next) {
 
   Query({
     name: "ModelDetail",
-    text: "select mo_id,mo_path,mo_modified,mo_author,mo_name,mo_notes,mo_modelfile,mo_shared,au_name \
-          from fgs_models \
-          left join fgs_authors on mo_author=au_id \
+    text: "select mo_id,mo_path,mo_modified,mo_author,mo_name,mo_notes,mo_modelfile,mo_shared,mg_id,mg_name,au_name \
+          FROM fgs_models \
+          LEFT JOIN fgs_modelgroups on fgs_models.mo_shared = fgs_modelgroups.mg_id \
+          LEFT JOIN fgs_authors on mo_author=au_id \
           where mo_id = $1",
     values: [id],
   })
@@ -163,12 +165,22 @@ router.get("/:id", function (request, response, next) {
         shared: row.mo_shared,
         author: row.au_name,
         authorId: row.mo_author,
+        modelgroup: {
+          id: row.mg_id,
+          name: row.mg_name,
+          shared: row.mg_id == 0,
+        },
+        // raw: row.mo_modelfile,
         content: [],
       };
-      var streambuf = new MultiStream(Buffer.from(result.rows[0].mo_modelfile, "base64"));
+
+
+      var streambuf = new MultiStream(Buffer.from(row.mo_modelfile, "base64"));
       streambuf.on("end", (a) => {
         response.json(ret);
       });
+
+      streambuf.on("error", e => console.log('error reading stream', e));
 
       streambuf.pipe(
         tar.t({
@@ -178,6 +190,7 @@ router.get("/:id", function (request, response, next) {
               filesize: entry.header.size,
             });
           },
+          onerror: er => console.log('tar error', er),
         })
       );
     })

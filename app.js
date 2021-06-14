@@ -3,9 +3,7 @@
 process.env.node_env = process.env.node_env || "development";
 
 const express = require("express");
-const path = require("path");
 const logger = require("morgan");
-const bodyParser = require("body-parser");
 
 const app = express();
 const passport = require("passport");
@@ -28,8 +26,7 @@ app.use(logger(process.env.node_env === "development" ? "dev" : "combined"));
 app.use(require("helmet")());
 app.use(require("compression")());
 app.use(allowCrossDomain);
-app.use(
-  bodyParser.json({
+app.use(express.json({
     strict: true,
     limit: "5mb",
   })
