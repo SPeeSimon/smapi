@@ -35,12 +35,12 @@ router.get("/", function (request, response, next) {
 
       response.json({
         stats: {
-          objects: row.objects || 0,
-          models: row.models || 0,
-          authors: row.authors || 0,
-          navaids: row.navaids || 0,
-          pending: row.pends || 0,
-          elev: row.gndelevs || 0,
+          objects: Number(row.objects || 0),
+          models: Number(row.models || 0),
+          authors: Number(row.authors || 0),
+          navaids: Number(row.navaids || 0),
+          pending: Number(row.pends || 0),
+          elev: Number(row.gndelevs || 0),
         },
       });
     })
@@ -60,11 +60,11 @@ router.get("/all", function (request, response, next) {
       result.rows.forEach(function (row) {
         reply.statistics.push({
           date: row.st_date,
-          objects: row.st_objects,
-          models: row.st_models,
-          authors: row.st_authors,
-          signs: row.st_signs,
-          navaids: row.st_navaids,
+          objects: Number(row.st_objects),
+          models: Number(row.st_models),
+          authors: Number(row.st_authors),
+          signs: Number(row.st_signs),
+          navaids: Number(row.st_navaids),
         });
       });
       response.json(reply);
