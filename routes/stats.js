@@ -79,16 +79,16 @@ router.get("/models/byauthor/:limit?/:offset?/:days?", function (request, respon
   var limit = Number(request.params.limit || 100);
   var days = Number(request.params.days || 0);
 
-  var QueryArgs = request.params.days
+  var QueryArgs = days > 0
     ? {
         name: "StatisticsModelsByAuthorAndRange",
         text: "SELECT COUNT(mo_id) AS count, au_name,au_id \
               FROM fgs_models, fgs_authors \
-              WHERE mo_author = au_id and mo_modified > now()::date - interval '90 days' \
+              WHERE mo_author = au_id and mo_modified > now()::date - (interval '1 days' * $3) \
               GROUP BY au_id \
               ORDER BY count DESC \
               limit $1 offset $2 ",
-        values: [limit, offset],
+        values: [limit, offset, days],
       }
     : {
         name: "StatisticsModelsByAuthor",
@@ -121,33 +121,34 @@ router.get("/models/byauthor/:limit?/:offset?/:days?", function (request, respon
 router.get("/models/bycountry", function (request, response, next) {
   Query({
     name: "StatisticsModelsByCountry",
-    text: "SELECT COUNT(ob_id) AS count, \
-                  COUNT(ob_id)/(SELECT shape_sqm/10000000000 FROM gadm2_meta WHERE iso ILIKE co_three) AS density, \
-                  co_name, \
-                  co_three \
-            FROM fgs_objects, fgs_countries \
-            WHERE ob_country = co_code AND co_three IS NOT NULL \
+    text: "SELECT trim(co_name) as co_name, \
+                  co_three, \
+                  COUNT(ob_id) AS count, \
+                  COUNT(ob_id)/(SELECT shape_sqm/10000000000 FROM gadm2_meta WHERE iso ILIKE co_three) AS density \
+            FROM fgs_objects \
+            INNER JOIN fgs_countries ON ob_country = co_code \
+            WHERE co_three IS NOT NULL \
             GROUP BY co_code \
             HAVING COUNT(ob_id)/(SELECT shape_sqm FROM gadm2_meta WHERE iso ILIKE co_three) > 0 \
             ORDER BY count DESC",
-    values: [],
-  })
+          })
     .then((result) => {
       response.json({
         modelsbycountry: result.rows.map(rowToModelsByCountry),
       });
     })
     .catch((err) => {
+      console.error('database error', err)
       return response.status(500).send("Database Error");
     });
 });
 
 function rowToModelsByCountry(row) {
   return {
-    name: row.co_name.trim(),
     id: row.co_three.trim(),
-    density: Number(row.density),
+    name: row.co_name.trim(),
     count: Number(row.count),
+    density: Number(row.density || 0),
   };
 }
 
