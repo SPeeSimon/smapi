@@ -8,7 +8,6 @@ const OFFSET_START = 0;
 
 var router = express.Router();
 
-
 function isString(s) {
   return s !== undefined && s !== null && s !== "" && s !== "null";
 }
@@ -72,6 +71,13 @@ function rowToModelGroup(row) {
   return {};
 }
 
+function rowtoObjectGroup(row) {
+  return {
+    id: row["gp_id"],
+    name: row["gp_name"],
+  };
+}
+
 router.get("/list/:limit?/:offset?", function (request, response, next) {
   var offset = Number(request.params.offset || 0);
   var limit = Number(request.params.limit || 100);
@@ -100,8 +106,26 @@ router.get("/list/:limit?/:offset?", function (request, response, next) {
     });
 });
 
-
-
+router.get("/groups", function (request, response, next) {
+  Query({
+    name: "Select Groups",
+    text: "SELECT gp_id, gp_name \
+             FROM fgs_groups \
+             order by gp_name asc",
+  })
+    .then((result) => {
+      const objectGroups = result.rows.map(rowtoObjectGroup);
+      return response
+        .set({
+          "Cache-Control": "public, max-age=604800",
+          ETAG: objectGroups.map((g) => g.id).join(""),
+        })
+        .json(objectGroups);
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
+});
 
 router.get("/search", function (request, response, next) {
   console.log("search");
@@ -119,7 +143,8 @@ router.get("/search", function (request, response, next) {
     .forCountry(request.query.country)
     .forModelName(request.query.modelname)
     .forModelId(request.query.model)
-    .forModelgroup(request.query.groupid || request.query.modelgroup)
+    .forModelgroup(request.query.modelgroup)
+    .forObjectgroup(request.query.groupid)
     .forTile(request.query.tile)
     .forAuthor(request.query.author)
     .withPaging(request.query.limit, request.query.offset)
@@ -142,9 +167,11 @@ router.get("/countries", function (request, response, next) {
     text: "SELECT * FROM fgs_countries ORDER BY co_name",
   })
     .then((result) => {
-      return response.json(result.rows.map(row => {
-        return { code: row.co_code, name: row.co_name };
-      }));
+      return response.json(
+        result.rows.map((row) => {
+          return { code: row.co_code, name: row.co_name };
+        })
+      );
     })
     .catch((err) => {
       return response.status(500).send("Database Error");
@@ -189,7 +216,6 @@ router.get("/", function (request, response, next) {
   var north = toNumber(request.query.n);
   var south = toNumber(request.query.s);
 
-
   Query({
     name: "Select Objects Within",
     text: "SELECT ob_id, ob_text, ob_country, ob_model, ST_Y(wkb_geometry) AS ob_lat, ST_X(wkb_geometry) AS ob_lon, \
@@ -224,7 +250,7 @@ class ObjectSearchQuery {
   constructor() {}
 
   currentParamIndex() {
-    return '$' + (this.queryParams.length + 1);
+    return "$" + (this.queryParams.length + 1);
   }
 
   forDescription(description) {
@@ -267,26 +293,42 @@ class ObjectSearchQuery {
     if (isString(point)) {
       const latlon = point.split(",");
       if (latlon.length == 2 && isNumber(latlon[0]) && isNumber(latlon[1])) {
-        this.withFilter("P", `wkb_geometry = ST_PointFromText(${this.currentParamIndex()}, 4326)`, "POINT(" + latlon[0] + ' ' + latlon[1] + ")");
+        this.withFilter(
+          "P",
+          `wkb_geometry = ST_PointFromText(${this.currentParamIndex()}, 4326)`,
+          "POINT(" + latlon[0] + " " + latlon[1] + ")"
+        );
       }
     }
     return this;
   }
   forGndElevation(gndElev) {
     if (gndElev !== undefined && isNumber(gndElev)) {
-      this.withFilter("GE", `(ob_gndelev BETWEEN ${this.currentParamIndex()} -25 AND ${this.currentParamIndex()} +25)`, Number(gndElev));
+      this.withFilter(
+        "GE",
+        `(ob_gndelev BETWEEN ${this.currentParamIndex()} -25 AND ${this.currentParamIndex()} +25)`,
+        Number(gndElev)
+      );
     }
     return this;
   }
   forElevOffset(elevOffset) {
     if (elevOffset !== undefined && isNumber(elevOffset)) {
-      this.withFilter("Eo", `(ob_elevoffset BETWEEN ${this.currentParamIndex()} -25 AND ${this.currentParamIndex()} +25)`, Number(elevOffset));
+      this.withFilter(
+        "Eo",
+        `(ob_elevoffset BETWEEN ${this.currentParamIndex()} -25 AND ${this.currentParamIndex()} +25)`,
+        Number(elevOffset)
+      );
     }
     return this;
   }
   forHeading(heading) {
     if (isString(heading)) {
-      this.withFilter("H", `(ob_heading BETWEEN ${this.currentParamIndex()} -5 AND ${this.currentParamIndex()} +5)`, Number(heading));
+      this.withFilter(
+        "H",
+        `(ob_heading BETWEEN ${this.currentParamIndex()} -5 AND ${this.currentParamIndex()} +5)`,
+        Number(heading)
+      );
     }
     return this;
   }
@@ -298,7 +340,11 @@ class ObjectSearchQuery {
   }
   forModelName(name) {
     if (isString(name)) {
-      this.withFilter("Mn", `ob_model in (SELECT mo_id FROM fgs_models WHERE mo_name like ${this.currentParamIndex()})`, `%${name}%`);
+      this.withFilter(
+        "Mn",
+        `ob_model in (SELECT mo_id FROM fgs_models WHERE mo_name like ${this.currentParamIndex()})`,
+        `%${name}%`
+      );
     }
     return this;
   }
@@ -310,7 +356,17 @@ class ObjectSearchQuery {
   }
   forModelgroup(modelgroup) {
     if (modelgroup !== undefined && isNumber(modelgroup)) {
-      this.withFilter("Mg", `ob_group = ${this.currentParamIndex()}`, Number(modelgroup));
+      this.withFilter(
+        "Mg",
+        `ob_model in (SELECT mo_id FROM fgs_models WHERE mo_shared = ${this.currentParamIndex()})`,
+        Number(modelgroup)
+      );
+    }
+    return this;
+  }
+  forObjectgroup(groupid) {
+    if (groupid !== undefined && isNumber(groupid)) {
+      this.withFilter("Og", `ob_group = ${this.currentParamIndex()}`, Number(groupid));
     }
     return this;
   }
@@ -375,7 +431,8 @@ class ObjectSearchQuery {
             LEFT JOIN fgs_modelgroups on fgs_models.mo_shared = fgs_modelgroups.mg_id \
             WHERE " +
         ["1=1", ...this.queryFilters].join(" AND ") +
-        ' ORDER BY ' + this.orderBy + 
+        " ORDER BY " +
+        this.orderBy +
         this.queryPaging,
       values: this.queryParams,
     };
