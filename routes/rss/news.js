@@ -4,15 +4,16 @@ const Feed = require("feed").Feed;
 
 var router = express.Router();
 
+
 router.get("/", function (request, response, next) {
   const feed = new Feed({
     title: "FGFSDB Updates",
-    link: "https://scenery.flightgear.org/",
+    link: `${process.env.SCENERY_NEWS_URL}`,
     language: "en-GB",
     copyright: "Jon Stockill 2006.",
     description: "FlightGear scenery object database updates.",
     ttl: 720,
-    favicon: "https://scenery.flightgear.org/favicon.ico",
+    favicon: `${process.env.SCENERY_URL}/favicon.ico`,
     generator: "FlightGear Scenery News RSS",
   });
 
@@ -27,18 +28,18 @@ router.get("/", function (request, response, next) {
   })
     .then((result) => {
       result.rows.forEach((post) => {
-        const url = "https://scenery.flightgear.org/#/news/" + post.ne_id;
+        const url =  `${process.env.SCENERY_NEWS_URL}/${post.ne_id}`;
         feed.addItem({
           id: url,
           link: url,
+          date: post.ne_timestamp,
           description: post.ne_text,
           author: [
             {
               name: post.au_name,
-              link: "https://scenery.flightgear.org/#/author/" + post.ne_author,
+              link: `${process.env.SCENERY_AUTHOR_URL}/${post.ne_author}`,
             },
           ],
-          date: post.ne_timestamp,
         });
       });
 
@@ -49,17 +50,5 @@ router.get("/", function (request, response, next) {
       return response.status(500).send("Database Error");
     });
 });
-
-function rowToNewsItem(row) {
-  return {
-    id: row.ne_id,
-    timestamp: row.ne_timestamp,
-    author: {
-      id: row.ne_author,
-      name: row.au_name,
-    },
-    text: row.ne_text,
-  };
-}
 
 module.exports = router;
