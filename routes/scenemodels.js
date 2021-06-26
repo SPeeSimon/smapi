@@ -1,13 +1,10 @@
 const express = require("express");
 const Query = require("../pg");
 const util = require("util");
+const {isNumber, isString, toNumber} = require("../utils/validations");
 
 var router = express.Router();
 
-function toNumber(x) {
-  var n = Number(x || 0);
-  return isNaN(n) ? 0 : n;
-}
 
 var selectSignsWithinSql =
   "SELECT si_id, ST_Y(wkb_geometry) AS ob_lat, ST_X(wkb_geometry) AS ob_lon, \

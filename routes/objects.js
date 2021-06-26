@@ -3,23 +3,21 @@ const express = require("express");
 const Query = require("../pg");
 const util = require("util");
 const auth = require("./auth");
+const {isNumber, isString, toNumber} = require("../utils/validations");
+const { buildCheckFunction, validationResult, matchedData, param } = require('express-validator');
+const checkBodyAndQuery = buildCheckFunction(['body', 'query']);
 const DEFAULT_LIMIT = 20;
 const OFFSET_START = 0;
 
 var router = express.Router();
 
-function isString(s) {
-  return s !== undefined && s !== null && s !== "" && s !== "null";
+function hasAuthorisation(request, response, next) {
+  if (true) {
+    return response.status(401).send("Unauthorized");
+  }
+  next();
 }
 
-function isNumber(x) {
-  return !isNaN(Number(x));
-}
-
-function toNumber(x) {
-  var n = Number(x || 0);
-  return isNaN(n) ? 0 : n;
-}
 
 function toFeatureCollection(rows) {
   return {
@@ -148,9 +146,9 @@ router.get("/search", function (request, response, next) {
     .forTile(request.query.tile)
     .forAuthor(request.query.author)
     .withPaging(request.query.limit, request.query.offset)
-    .withOrder(request.query.order)
+    .withOrder({column: request.query['order.column'], dir: request.query['order.dir']})
     .makeQuery();
-  // console.log(query)
+  console.log(query)
 
   Query(query)
     .then((result) => {
@@ -207,6 +205,68 @@ router.get("/:id", function (request, response, next) {
     });
 });
 
+router.put("/:id", [
+  hasAuthorisation,
+],
+  function (request, response, next) {
+  var id = Number(request.params.id);
+
+  if (isNaN(id)) {
+    return response.status(500).send("Invalid Request");
+  }
+
+  Query({
+    name: "Update Object",
+    text: "UPDATE fgs_objects \
+          SET ob_text=$1, \
+            wkb_geometry=ST_PointFromText('POINT($2 $3)', 4326), \
+            ob_country=$4, \
+            ob_gndelev=-9999, \
+            ob_elevoffset=$5, \
+            ob_heading=$6, \
+            ob_model=$7, \
+            ob_group=1 \
+          WHERE ob_id= $8;",
+    values: [id],
+  })
+    .then((result) => {
+      if (0 == result.rows.length) {
+        return response.status(404).send("updating object failed");
+      }
+      return response.json(rowToObjectFeature(result.rows[0]));
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
+});
+
+router.delete("/:id", [
+  hasAuthorisation,
+  param('id').isInt(),
+],
+  function (request, response, next) {
+  var id = Number(request.params.id);
+
+  if (isNaN(id)) {
+    return response.status(500).send("Invalid Request");
+  }
+
+  Query({
+    name: "Delete Object",
+    text: "DELETE FROM fgs_objects WHERE ob_id=$1;",
+    values: [id],
+  })
+    .then((result) => {
+      if (0 == result.rowCount) {
+        return response.status(404).send(`deleting object with id ${id} failed`);
+      }
+      return response.status(204).send("Deleted");
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
+});
+
 router.get("/", function (request, response, next) {
   if (!(isNumber(request.query.e) && isNumber(request.query.w) && isNumber(request.query.n) && isNumber(request.query.s))) {
     return response.status(500).send("Invalid query options");
@@ -228,6 +288,47 @@ router.get("/", function (request, response, next) {
             LIMIT 400",
     values: [
       util.format("POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))", west, south, west, north, east, north, east, south, west, south),
+    ],
+  })
+    .then((result) => {
+      return response.json(toFeatureCollection(result.rows));
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
+});
+
+
+router.post("/", [ hasAuthorisation,
+  checkBodyAndQuery('description').isString().trim().escape(),
+  checkBodyAndQuery('longitude').isLength({max: 20}).isFloat({min: -180, max: 180}).toFloat(),       // .isLatLong()
+  checkBodyAndQuery('latitude').isLength({max: 20}).isFloat({min: -90, max: 90}).toFloat(),
+  checkBodyAndQuery('obOffset').optional().isNumeric().isInt({min: -1000, max: 1000}),
+  checkBodyAndQuery('heading').isNumeric().isInt({min: 0, max: 360}).toInt(),
+  checkBodyAndQuery('countryCode').isISO31661Alpha2(),
+  checkBodyAndQuery('modelId').isNumeric().isInt({min: 1}).toInt(),
+], function (request, response, next) {
+
+  const errors = validationResult(request);
+  if (!errors.isEmpty()) {
+    return response.status(400).json({ errors: errors.array() });
+  }
+
+  const data = matchedData(request);
+  const description = data.description;
+  const longitude = data.longitude;
+  const latitude = data.latitude;
+  const obOffset = data.obOffset;
+  const heading = data.heading;
+  const countryCode = data.countryCode;
+  const modelId = data.modelId;
+
+  Query({
+    name: "Insert Object",
+    text: "INSERT INTO fgs_objects (ob_id, ob_text, wkb_geometry, ob_gndelev, ob_elevoffset, ob_heading, ob_country, ob_model, ob_group, ob_modified) \
+            VALUES (DEFAULT, $1, ST_PointFromText('POINT($2 $3)', 4326), -9999, $4, $5, $6, $7, 1, now()) RETURNING ob_id;",
+    values: [
+      description, longitude, latitude, (obOffset == 0 || obOffset == '')?"NULL": obOffset, heading, countryCode, modelId,
     ],
   })
     .then((result) => {
@@ -403,20 +504,21 @@ class ObjectSearchQuery {
     return this;
   }
   withOrder(order) {
-    // order = { column: "1", dir: "asc" };
-    // ORDER BY mo_modified DESC
+    if (order !== undefined && isNumber(order.column)){
+      const order_cols = {
+        1: "ob_id",
+        2: "ob_text",
+        3: "ob_country",
+        4: "ob_model",
+        5: "ob_modified",
+        6: "ob_shared",
+        7: "ob_tile",
+      };
 
-    // var order_cols = {
-    //   1: "mo_id",
-    //   2: "mo_name",
-    //   3: "mo_path",
-    //   4: "mo_notes",
-    //   5: "mo_modified",
-    //   6: "mo_shared",
-    // };
-
-    // order_col = order_cols[toNumber(order[0].column)] || "mo_id";
-    // order_dir = order[0].dir === "asc" ? "ASC" : "DESC";
+      const order_col = order_cols[toNumber(order.column)] || "mo_modified";
+      const order_dir = order.dir === "asc" ? "ASC" : "DESC";
+      this.orderBy = `${order_col} ${order_dir}`
+    }
     return this;
   }
   makeQuery() {

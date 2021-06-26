@@ -2,13 +2,10 @@ const express = require("express");
 const Query = require("../pg");
 const zlib = require("zlib");
 const util = require("util");
+const {isNumber, isString, toNumber} = require("../utils/validations");
 
 var router = express.Router();
 
-function toNumber(x) {
-  var n = Number(x || 0);
-  return isNaN(n) ? 0 : n;
-}
 
 const unzip = util.promisify(zlib.unzip);
 router.get("/", function (request, response, next) {

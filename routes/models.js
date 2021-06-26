@@ -1,22 +1,10 @@
 const express = require("express");
 const Query = require("../pg");
+const {isNumber, isString, toNumber} = require("../utils/validations");
 const DEFAULT_LIMIT = 20;
 const OFFSET_START = 0;
 
 var router = express.Router();
-
-function isNumber(x) {
-  return !isNaN(Number(x));
-}
-
-function isString(s) {
-  return s !== undefined && s !== null && s !== "";
-}
-
-function toNumber(x) {
-  var n = Number(x || 0);
-  return isNaN(n) ? 0 : n;
-}
 
 router.get("/bymg/:mg/:limit?/:offset?", function (request, response, next) {
   var mg = Number(request.params.mg || 0);
@@ -77,7 +65,6 @@ router.get("/datatable", function (request, response, next) {
 
   request.query.search = request.query.search || {};
   var search = request.query.search.value || "";
-
   order = request.query.order || [{ column: "1", dir: "asc" }];
 
   var order_cols = {
@@ -150,17 +137,33 @@ router.get("/search/:pattern", function (request, response, next) {
     .catch((err) => {
       return response.status(500).send("Database Error");
     });
-
-  // no_thumbnail=true => mo_thumbfile is null
-  // author => mo_author = ?
-  // author.split(',') voor mo_author in (?, ?)
-  // group => mo_shared = ?
-  // name => mo_name like ?
-  // path => mo_path like ?
-  // notes => mo_notes like ?
 });
 
-router.get("/search/", function (request, response, next) {
+router.get("/search/", modelSearchHandler);
+
+router.get("/search/byauthor/:id/:limit?/:offset?", function (request, response, next) {
+  var id = Number(request.params.id || 0);
+  var offset = Number(request.params.offset || 0);
+  var limit = Number(request.params.limit || 20);
+
+  if (!isNumber(request.params.id)) {
+    return response.status(500).send("Invalid Request: id is not a valid number");
+  }  
+
+  const query = new ModelSearchQuery()
+                  .forAuthorId(id)
+                  .withPaging(limit, offset)
+                  .makeQuery();
+  Query(query)
+    .then((result) => {
+      response.json(result.rows.map(rowToModelWithAuthor));
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
+});
+
+function modelSearchHandler(request, response, next) {
   const query = new ModelSearchQuery()
     .forFile(request.query.file)
     .forName(request.query.name)
@@ -172,12 +175,12 @@ router.get("/search/", function (request, response, next) {
     .forModelgroup(request.query.modelgroup)
     .forObjectId(request.query.object)
     .forAuthor(request.query.author)
+    .forAuthorId(request.query.authorId)
     .forThumbnail(request.query.thumbnail)
     .withPaging(request.query.limit, request.query.offset)
-    .withOrder(request.query.order)
+    .withOrder({column: request.query['order.column'], dir: request.query['order.dir']})
     .makeQuery();
   // console.log(query);
-
   Query(query)
     .then((result) => {
       response.json(result.rows.map(rowToModelWithAuthor));
@@ -186,30 +189,7 @@ router.get("/search/", function (request, response, next) {
       console.log("db error", err);
       return response.status(500).send("Database Error");
     });
-  // author.split(',') voor mo_author in (?, ?)
-});
-
-router.get("/search/byauthor/:id/:limit?/:offset?", function (request, response, next) {
-  var id = Number(request.params.id || 0);
-  var offset = Number(request.params.offset || 0);
-  var limit = Number(request.params.limit || 20);
-  Query({
-    name: "ModelsSearchByAuthor",
-    text: "select mo_id,mo_path,mo_name,mo_notes,mo_shared,mo_modified,mo_author,au_name \
-          from fgs_models \
-          join fgs_authors on au_id=mo_author \
-          where mo_author=$1 or mo_modified_by=$1 \
-          ORDER BY mo_modified DESC \
-          limit $2 offset $3",
-    values: [id, limit, offset],
-  })
-    .then((result) => {
-      response.json(result.rows.map(rowToModelWithAuthor));
-    })
-    .catch((err) => {
-      return response.status(500).send("Database Error");
-    });
-});
+}
 
 function rowToModel(row) {
   return {
@@ -327,6 +307,12 @@ class ModelSearchQuery {
     }
     return this;
   }
+  forAuthorId(authorId) {
+    if (isNumber(authorId)) {
+      this.withFilter("Ai", `(mo_author = $${this.currentParamIndex()} OR mo_modified_by = $${this.currentParamIndex()})`, authorId);
+    }
+    return this;
+  }
   forThumbnail(thumbnail) {
     if (thumbnail === "true") {
       this.queryName += "T,";
@@ -357,20 +343,21 @@ class ModelSearchQuery {
     }
     return this;
   }
-  withOrder(file) {
-    // order = { column: "1", dir: "asc" };
-    // ORDER BY mo_modified DESC
+  withOrder(order) {
+    if (order !== undefined && isNumber(order.column)){
+      const order_cols = {
+        1: "mo_id",
+        2: "mo_name",
+        3: "mo_path",
+        4: "mo_notes",
+        5: "mo_modified",
+        6: "mo_shared",
+      };
 
-    // var order_cols = {
-    //   1: "mo_id",
-    //   2: "mo_name",
-    //   3: "mo_path",
-    //   4: "mo_notes",
-    //   5: "mo_modified",
-    //   6: "mo_shared",
-    // };
-    // order_col = order_cols[toNumber(order[0].column)] || "mo_id";
-    // order_dir = order[0].dir === "asc" ? "ASC" : "DESC";
+      const order_col = order_cols[toNumber(order.column)] || "mo_modified";
+      const order_dir = order.dir === "asc" ? "ASC" : "DESC";
+      this.orderBy = `${order_col} ${order_dir}`
+    }
     return this;
   }
   makeQuery() {

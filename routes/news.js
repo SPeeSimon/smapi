@@ -1,5 +1,6 @@
 const express = require("express");
 const Query = require("../pg");
+const {isNumber, isString, toNumber} = require("../utils/validations");
 
 var router = express.Router();
 

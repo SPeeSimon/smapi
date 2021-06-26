@@ -1,13 +1,8 @@
 const express = require("express");
 const Query = require("../pg");
+const {isNumber, isString, toNumber} = require("../utils/validations");
 
 var router = express.Router();
-
-
-function toNumber(x) {
-  var n = Number(x || 0);
-  return isNaN(n) ? 0 : n;
-}
 
 
 function rowToModelgroup(row) {

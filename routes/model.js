@@ -1,10 +1,20 @@
 const express = require("express");
 const Query = require("../pg");
 const tar = require("tar");
-const util = require("util");
+const MultiStream = require("../utils/MultiStream");
+const { buildCheckFunction, validationResult, matchedData, param } = require('express-validator');
+const checkBodyAndQuery = buildCheckFunction(['body', 'query']);
 
-var stream = require("stream");
 var router = express.Router();
+
+
+function hasAuthorisation(request, response, next) {
+  if (true) {
+    return response.status(401).send("Unauthorized");
+  }
+  next();
+}
+
 
 router.get("/:id/tgz", function (request, response, next) {
   var id = Number(request.params.id || 0);
@@ -73,26 +83,6 @@ function getThumb(request, response, next) {
 router.get("/:id/thumb", getThumb);
 router.get("/:id/thumb.jpg", getThumb);
 
-
-var MultiStream = function (object, options) {
-  if (object instanceof Buffer || typeof object === "string") {
-    options = options || {};
-    stream.Readable.call(this, {
-      highWaterMark: options.highWaterMark,
-      encoding: options.encoding,
-    });
-  } else {
-    stream.Readable.call(this, { objectMode: true });
-  }
-  this._object = object;
-};
-
-util.inherits(MultiStream, stream.Readable);
-
-MultiStream.prototype._read = function () {
-  this.push(this._object);
-  this._object = null;
-};
 
 router.get("/:id/positions", function (request, response, next) {
   var id = Number(request.params.id || 0);
@@ -174,6 +164,10 @@ router.get("/:id", function (request, response, next) {
         content: [],
       };
 
+      if (!row.mo_modelfile) {
+        // no model file (should be error)
+        return response.json(ret);
+      }
 
       var streambuf = new MultiStream(Buffer.from(row.mo_modelfile, "base64"));
       streambuf.on("end", (a) => {
@@ -198,5 +192,83 @@ router.get("/:id", function (request, response, next) {
       return response.status(500).send("Database Error");
     });
 });
+
+router.post("/", [hasAuthorisation,
+  checkBodyAndQuery('path').not().isEmpty().trim().escape(),
+  checkBodyAndQuery('author').isNumeric().toInt(),
+  checkBodyAndQuery('name').not().isEmpty().trim().escape(),
+  checkBodyAndQuery('notes').trim().escape(),
+  checkBodyAndQuery('thumbfile').isBase64(),
+  checkBodyAndQuery('modelfile').isBase64().notEmpty(),
+  checkBodyAndQuery('shared').isNumeric().toInt(),
+  ],
+  function (request, response, next) {
+  // insert new model
+
+  const errors = validationResult(request);
+  if (!errors.isEmpty()) {
+    return response.status(400).json({ errors: errors.array() });
+  }
+
+  const path = request.query.path || request.body.path;
+  const author = request.query.author || request.body.author;
+  const name = request.query.name || request.body.name;
+  const notes = request.query.notes || request.body.notes;
+  const thumbfile = request.query.thumbfile || request.body.thumbfile;
+  const modelfile = request.query.modelfile || request.body.modelfile;
+  const shared = request.query.shared || request.body.shared;
+
+  Query({
+    name: "Insert Model",
+    text: "INSERT INTO fgs_models (mo_id, mo_path, mo_author, mo_name, mo_notes, mo_thumbfile, mo_modelfile, mo_shared, mo_modified) \
+            VALUES (DEFAULT, $1, $2, $3, $4, $5, $6, $7, now()) \
+            RETURNING mo_id",
+    values: [
+      path, Number(author), name, notes, thumbfile, modelfile, Number(shared)
+    ],
+  })
+    .then((result) => {
+      if (0 == result.rows.length) {
+        return response.status(412).send("model not created");
+      }
+      response.status(201).set({
+        'Location': `/model/${result.rows[0].mo_id}`
+      }).json(result.rows[0]);
+
+    })
+    .catch((err) => {
+      console.log(err.severity, 'inserting model (', err.code, '):', err.detail)
+      return response.status(500).send("Database Error");
+    });
+});
+
+
+router.delete("/:id", [
+  hasAuthorisation,
+  param('id').isInt(),
+],
+  function (request, response, next) {
+  var id = Number(request.params.id);
+
+  if (isNaN(id)) {
+    return response.status(500).send("Invalid Request");
+  }
+
+  Query({
+    name: "Delete Model",
+    text: "DELETE FROM fgs_models WHERE mo_id=$1;",
+    values: [id],
+  })
+    .then((result) => {
+      if (0 == result.rowCount) {
+        return response.status(404).send(`deleting model with id ${id} failed`);
+      }
+      return response.status(204).send("Deleted");
+    })
+    .catch((err) => {
+      return response.status(500).send("Database Error");
+    });
+});
+
 
 module.exports = router;

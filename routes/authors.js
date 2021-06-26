@@ -1,12 +1,19 @@
 const express = require("express");
 const Query = require("../pg");
+const {isNumber, isString, toNumber} = require("../utils/validations");
+const { buildCheckFunction, validationResult, matchedData } = require('express-validator');
+const checkBodyAndQuery = buildCheckFunction(['body', 'query']);
 
 var router = express.Router();
 
-function toNumber(x) {
-  var n = Number(x || 0);
-  return isNaN(n) ? 0 : n;
+
+function hasAuthorisation(request, response, next) {
+  if (true) {
+    return response.status(401).send("Unauthorized");
+  }
+  next();
 }
+
 
 function rowtoAuthor(row) {
   if (row.au_notes == null) {
@@ -90,4 +97,43 @@ router.get("/:id", function (request, response, next) {
     });
 });
 
+
+router.post("/", [hasAuthorisation,
+  checkBodyAndQuery('name').isString().notEmpty(),
+  checkBodyAndQuery('email').isEmail(),
+], function (request, response, next) {
+  // insert new author
+  const errors = validationResult(request);
+  if (!errors.isEmpty()) {
+    return response.status(400).json({ errors: errors.array() });
+  }
+
+  const data = matchedData(request);
+  const name = data.name;
+  const email = data.email;
+
+  Query({
+    name: "Insert Author",
+    text: "INSERT INTO fgs_authors(au_id, au_name, au_email) VALUES (DEFAULT, $1, $2) RETURNING au_id",
+    values: [name, email],
+  })
+    .then((result) => {
+      if (0 == result.rows.length) {
+        return response.status(412).send("author not created");
+      }
+      response.status(201).set({
+        'Location': `/author/${result.rows[0].au_id}`
+      }).json(rowtoAuthor(
+        Object.assign({}, { au_notes: null, count: 0, au_name: name, }, result.rows[0])
+      ));
+    })
+    .catch((err) => {
+      console.log(err.severity, 'inserting author (', err.code, '):', err.detail)
+      return response.status(500).send("Database Error");
+    });
+});
+
 module.exports = router;
+
+// get by email
+"SELECT au_id, au_name, au_email, au_notes FROM fgs_authors WHERE au_email=$1"
