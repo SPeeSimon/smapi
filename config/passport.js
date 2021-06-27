@@ -3,54 +3,14 @@ const GitHubStrategy = require("passport-github2").Strategy;
 const TwitterStrategy = require("passport-twitter").Strategy;
 const JwtStrategy = require("passport-jwt").Strategy;
 const FacebookStrategy = require("passport-facebook").Strategy;
+const BasicStrategy = require("passport-http").BasicStrategy;
+const { UserDao, NoAuthenticationFoundError } = require("../dao/UserDao");
 
-const Query = require("../pg");
-
-class User {
-  constructor() {
-    this.id = -1;
-    this.name = "";
-    this.email = "";
-    this.notes = "";
-    this.lastLogin = null;
-  }
-
-  static SYSTEM_GITHUB = 1;
-  static SYSTEM_GOOGLE = 2;
-  static SYSTEM_FACEBOOK = 3;
-  static SYSTEM_TWITTER = 4;
-
-  static find = function (authorityId, id) {
-    return new Promise((resolve, reject) => {
-      console.log("reading user", authorityId, id);
-      Query({
-        name: "Select UserByExternalAuthority",
-        text: "SELECT au_id,au_name,au_email,au_notes,au_modeldir \
-                  FROM fgs_authors \
-                  INNER JOIN fgs_extuserids ON au_id=eu_author_id \
-                  WHERE eu_authority=$1 AND eu_external_id=$2",
-        values: [authorityId, id],
-      })
-        .then((result) => {
-          console.log(result.rows);
-          if (result.rowCount !== 1) {
-            return resolve(null);
-          }
-          const user = new User();
-          user.id = result.rows[0].au_id;
-          user.name = result.rows[0].au_name;
-          user.email = result.rows[0].au_email;
-          user.notes = result.rows[0].au_notes;
-          console.log("last login", result.rows[0].eu_lastlogin);
-          user.lastLogin = new Date(); // fixme, get
-          resolve(user);
-        })
-        .catch((err) => {
-          return reject(err);
-        });
-    });
-  };
-}
+const SYSTEM_GITHUB = 1;
+const SYSTEM_GOOGLE = 2;
+const SYSTEM_FACEBOOK = 3;
+const SYSTEM_TWITTER = 4;
+const SYSTEM_BASIC = 99;
 
 const StrategyConf = {
   facebook: {
@@ -59,14 +19,14 @@ const StrategyConf = {
     clientSecret: `${process.env.AUTH_FACEBOOK_SECRET}`,
     callbackURL: "auth/facebook/callback",
   },
-  
+
   github: {
     enabled: `${process.env.AUTH_GITHUB_ENABLED}`,
     clientID: `${process.env.AUTH_GITHUB_CLIENTID}`,
     clientSecret: `${process.env.AUTH_GITHUB_SECRET}`,
     callbackURL: "auth/github/callback",
   },
-  
+
   google: {
     enabled: `${process.env.AUTH_GOOGLE_ENABLED}`,
     clientID: `${process.env.AUTH_GOOGLE_CLIENTID}`,
@@ -82,53 +42,81 @@ const StrategyConf = {
   },
 };
 
+
+if (process.env.node_env === "development") {
+  console.log('Add BASIC authentication for dev')
+  StrategyConf['basic'] = {
+      enabled: true,
+      clientID: '',
+      clientSecret: '',
+      callbackURL: "auth/basic/callback",
+    };
+}
+
+
+
 // READ OAUTH settings from ENV
-for (k in StrategyConf) {
-  const conf = process.env["OAUTH_" + k];
+for (strategyKey in StrategyConf) {
+  const conf = process.env["OAUTH_" + strategyKey];
   if (!conf) {
     continue;
   }
   try {
-    StrategyConf[k] = JSON.parse(conf);
+    StrategyConf[strategyKey] = Object.assign({}, StrategyConf[strategyKey], JSON.parse(conf));
   } catch {
-    console.error("can't parse OAUTH config", conf);
+    console.error("can't parse OAUTH config for ", strategyKey, conf);
   }
 }
 
-module.exports = function (passport) {
-  function getCallbackUrl(suffix) {
-    var urlPrefix = "http://localhost:3001/";
-    if (process.env.node_env !== "development") {
-      urlPrefix = process.env.urlprefix;
-      if (!urlPrefix) {
-        console.log("urlprefix environment not set!");
-        urlPrefix = "";
-      }
-    }
-    urlPrefix = urlPrefix.replace(/\/+$/, "");
-    return urlPrefix + "/" + suffix.replace(/^\/+/, "");
+function handleSuccess(user, done) {
+  // console.log("Authenticated succesfull for user", user);
+  if (!user) {
+    return done(null, null);
   }
+  return done(null, user);
+}
 
+function handleError(err, done) {
+  if (err instanceof NoAuthenticationFoundError) {
+    console.error("Authentication error", err);
+    return done(null, null);
+  }
+  return done(err);
+}
+
+function getCallbackUrl(suffix) {
+  var urlPrefix = "http://localhost:3001/";
+  if (process.env.node_env !== "development") {
+    urlPrefix = process.env.urlprefix;
+    if (!urlPrefix) {
+      console.log("urlprefix environment not set!");
+      urlPrefix = "";
+    }
+  }
+  urlPrefix = urlPrefix.replace(/\/+$/, "");
+  return urlPrefix + "/" + suffix.replace(/^\/+/, "");
+}
+
+module.exports = function (passport) {
   passport.serializeUser(function (user, done) {
-    done(null, JSON.stringify({ a: User.SYSTEM_GITHUB, b: user.authorityId }));
+    // store user id in session
+    done(null, JSON.stringify({ authId: user.authorityId, userId: user.id }));
   });
 
   passport.deserializeUser(function (user, done) {
-    let ud = null;
+    // read user id from session
+    console.log('serialize user', user)
+    let requestedUser = null;
     try {
-      ud = JSON.parse(user);
+      requestedUser = JSON.parse(user);
     } catch (ex) {
       const msg = "can't deserialize user";
       console.err(msg, ex);
-      done(msg);
+      return done(msg);
     }
-    User.find(ud.a, ud.b)
-      .then((user) => {
-        done(null, user);
-      })
-      .catch((err) => {
-        done(err);
-      });
+    UserDao.find(requestedUser.authId, requestedUser.userId)
+      .then((user) => handleSuccess(user, done))
+      .catch((err) => handleError(err, done));
   });
 
   passport.use(
@@ -139,20 +127,11 @@ module.exports = function (passport) {
         callbackURL: getCallbackUrl(StrategyConf.google.callbackURL),
         passReqToCallback: true,
       },
-      function (req, token, refreshToken, profile, done) {
-        console.log("github callback with user", req.user, "profile", profile);
-        User.find(User.SYSTEM_GOOGLE, req.user ? req.user.authorityId : profile.id)
-          .then((user) => {
-            console.log("found user", user);
-            if (!user) {
-              return done(null, null);
-            }
-            return done(null, user);
-          })
-          .catch((err) => {
-            console.error(err);
-            return done(null, null);
-          });
+      function (request, token, refreshToken, profile, done) {
+        console.log("github callback with user", request.user, "profile", profile);
+        UserDao.find(SYSTEM_GOOGLE, request.user ? request.user.authorityId : profile.id)
+          .then((user) => handleSuccess(user, done))
+          .catch((err) => handleError(err, done));
         /*
       user.google.id = profile.id
       user.google.token = profile.token
@@ -178,20 +157,11 @@ module.exports = function (passport) {
         callbackURL: getCallbackUrl(StrategyConf.github.callbackURL),
         passReqToCallback: true,
       },
-      function (req, token, refreshToken, profile, done) {
-        console.log("github callback with user", req.user, "profile", profile);
-        User.find(User.SYSTEM_GITHUB, req.user ? req.user.authorityId : profile.id)
-          .then((user) => {
-            console.log("found user", user);
-            if (!user) {
-              return done(null, null);
-            }
-            return done(null, user);
-          })
-          .catch((err) => {
-            console.error(err);
-            return done(null, null);
-          });
+      function (request, token, refreshToken, profile, done) {
+        console.log("github callback with user", request.user, "profile", profile);
+        UserDao.find(SYSTEM_GITHUB, request.user ? request.user.authorityId : profile.id)
+          .then((user) => handleSuccess(user, done))
+          .catch((err) => handleError(err, done));
       }
     )
   );
@@ -204,38 +174,33 @@ module.exports = function (passport) {
         callbackURL: getCallbackUrl(StrategyConf.twitter.callbackURL),
         passReqToCallback: true,
       },
-      function (req, token, tokenSecret, profile, done) {
-        console.log("twitter callback with user", req.user, "profile", profile);
-        var filter = req.user
+      function (request, token, tokenSecret, profile, done) {
+        console.log("twitter callback with user", request.user, "profile", profile);
+        var filter = request.user
           ? {
-              _id: req.user._id,
+              _id: request.user._id,
             }
           : {
               "twitter.id": profile.id,
             };
 
-        User.findOne(filter, function (err, user) {
-          if (err) {
-            return done(err);
-          }
+        UserDao.find(SYSTEM_TWITTER, username)
+          .then((user) => handleSuccess(user, done))
+          .catch((err) => handleError(err, done));
+        // User.findOne(filter, function (err, user) {
 
-          console.log("found user", user);
-          if (!user) {
-            return done(null, null);
-          }
-
-          user.twitter.id = profile.id;
-          user.twitter.token = profile.token;
-          user.twitter.name = profile.displayName;
-          user.name = user.name || user.twitter.name;
-          user.twitter.imgUrl = profile.photos[0].value;
-          user.save(function (err) {
-            if (err) {
-              throw err;
-            }
-            return done(null, user);
-          });
-        });
+        //   user.twitter.id = profile.id;
+        //   user.twitter.token = profile.token;
+        //   user.twitter.name = profile.displayName;
+        //   user.name = user.name || user.twitter.name;
+        //   user.twitter.imgUrl = profile.photos[0].value;
+        //   user.save(function (err) {
+        //     if (err) {
+        //       throw err;
+        //     }
+        //     return done(null, user);
+        //   });
+        // });
       }
     )
   );
@@ -248,60 +213,47 @@ module.exports = function (passport) {
         callbackURL: getCallbackUrl(StrategyConf.facebook.callbackURL),
         passReqToCallback: true,
       },
-      function (req, token, refreshToken, profile, done) {
-        console.log("facebook callback with user", req.user, "profile", profile);
+      function (request, token, refreshToken, profile, done) {
+        console.log("facebook callback with user", request.user, "profile", profile);
 
-        var filter = req.user
+        var filter = request.user
           ? {
-              _id: req.user._id,
+              _id: request.user._id,
             }
           : {
               "facebook.id": profile.id,
             };
 
-        User.findOne(filter, function (err, user) {
-          if (err) {
-            return done(err);
-          }
+        UserDao.find(SYSTEM_FACEBOOK, username)
+          .then((user) => handleSuccess(user, done))
+          .catch((err) => handleError(err, done));
 
-          console.log("found user", user);
-          if (!user) {
-            return done(null, null);
-          }
-
-          user.facebook.id = profile.id;
-          //      user.facebook.token = profile.token
-          user.facebook.name = profile.displayName;
-          user.name = user.name || user.facebook.name;
-          //      user.facebook.imgUrl = profile._json.avatar_url
-          user.save(function (err) {
-            if (err) {
-              throw err;
-            }
-            return done(null, user);
-          });
-        });
+        // User.findOne(filter, function (err, user) {
+        //   user.facebook.id = profile.id;
+        //   //      user.facebook.token = profile.token
+        //   user.facebook.name = profile.displayName;
+        //   user.name = user.name || user.facebook.name;
+        //   //      user.facebook.imgUrl = profile._json.avatar_url
+        //   user.save(function (err) {
+        //     if (err) {
+        //       throw err;
+        //     }
+        //     return done(null, user);
+        //   });
+        // });
       }
     )
   );
 
-  /*
-  passport.use(new JwtStrategy({
-    jwtFromRequest : function(req) {
-      var token = null;
-      if (req && req.params) {
-        token = req.params.token
+
+  if (process.env.node_env === "development") {
+    console.log('Added for development: BasicStrategy')
+    passport.use(new BasicStrategy(function (username, password, done) {
+        UserDao.find(SYSTEM_BASIC, username)
+          .then((user) => handleSuccess(user, done))
+          .catch((err) => handleError(err, done));
       }
-      console.log("extracted token", token)
-      return token;
-    },
-    secretOrKey : StrategyConf.jwtAuth.secret,
-  }, function(jwt_payload, done) {
-    console.log("JwtStrategy has payload", jwt_payload)
-    User.findById(jwt_payload.data.key, function(err, user) {
-      if( err ) throw err;
-      return done(null, user)
-    })
-  }));
-*/
+    ));
+  }
+
 };
