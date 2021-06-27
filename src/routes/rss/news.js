@@ -1,5 +1,5 @@
 const express = require("express");
-const Query = require("../../pg");
+const Query = require("../../dao/pg");
 const Feed = require("feed").Feed;
 
 var router = express.Router();
