@@ -1,5 +1,5 @@
 const express = require("express");
-const Query = require("../pg");
+const Query = require("../dao/pg");
 const util = require("util");
 const {isNumber, isString, toNumber} = require("../utils/validations");
 

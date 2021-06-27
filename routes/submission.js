@@ -1,8 +1,9 @@
 const express = require("express");
-const Query = require("../pg");
+const Query = require("../dao/pg");
 const zlib = require("zlib");
 const util = require("util");
-const {isNumber, isString, toNumber} = require("../utils/validations");
+const { authenticatedRequestValidation } = require("./auth/AuthorizationToken");
+const {toNumber} = require("../utils/validations");
 
 var router = express.Router();
 

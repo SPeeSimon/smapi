@@ -1,18 +1,12 @@
 const express = require("express");
-const Query = require("../pg");
-const {isNumber, isString, toNumber} = require("../utils/validations");
+const Query = require("../dao/pg");
+const {toNumber} = require("../utils/validations");
 const { buildCheckFunction, validationResult, matchedData } = require('express-validator');
+const { authenticatedRequestValidation } = require("./auth/AuthorizationToken");
 const checkBodyAndQuery = buildCheckFunction(['body', 'query']);
 
 var router = express.Router();
 
-
-function hasAuthorisation(request, response, next) {
-  if (true) {
-    return response.status(401).send("Unauthorized");
-  }
-  next();
-}
 
 
 function rowtoAuthor(row) {
@@ -98,7 +92,7 @@ router.get("/:id", function (request, response, next) {
 });
 
 
-router.post("/", [hasAuthorisation,
+router.post("/", [authenticatedRequestValidation,
   checkBodyAndQuery('name').isString().notEmpty(),
   checkBodyAndQuery('email').isEmail(),
 ], function (request, response, next) {

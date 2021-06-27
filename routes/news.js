@@ -1,12 +1,12 @@
 const express = require("express");
-const Query = require("../pg");
-const {isNumber, isString, toNumber} = require("../utils/validations");
+const Query = require("../dao/pg");
+const {toNumber} = require("../utils/validations");
 
 var router = express.Router();
 
 router.get("/list/:limit?/:offset?", function (request, response, next) {
-  var offset = Number(request.params.offset || 0);
-  var limit = Number(request.params.limit || 10);
+  var offset = toNumber(request.params.offset);
+  var limit = toNumber(request.params.limit);
 
   if (isNaN(offset) || isNaN(limit)) {
     return response.status(500).send("Invalid Request");

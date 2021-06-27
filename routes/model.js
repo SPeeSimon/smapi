@@ -1,19 +1,12 @@
 const express = require("express");
-const Query = require("../pg");
+const Query = require("../dao/pg");
 const tar = require("tar");
 const MultiStream = require("../utils/MultiStream");
 const { buildCheckFunction, validationResult, matchedData, param } = require('express-validator');
+const { authenticatedRequestValidation } = require("./auth/AuthorizationToken");
 const checkBodyAndQuery = buildCheckFunction(['body', 'query']);
 
 var router = express.Router();
-
-
-function hasAuthorisation(request, response, next) {
-  if (true) {
-    return response.status(401).send("Unauthorized");
-  }
-  next();
-}
 
 
 router.get("/:id/tgz", function (request, response, next) {
@@ -193,7 +186,7 @@ router.get("/:id", function (request, response, next) {
     });
 });
 
-router.post("/", [hasAuthorisation,
+router.post("/", [authenticatedRequestValidation,
   checkBodyAndQuery('path').not().isEmpty().trim().escape(),
   checkBodyAndQuery('author').isNumeric().toInt(),
   checkBodyAndQuery('name').not().isEmpty().trim().escape(),
@@ -244,7 +237,7 @@ router.post("/", [hasAuthorisation,
 
 
 router.delete("/:id", [
-  hasAuthorisation,
+  authenticatedRequestValidation,
   param('id').isInt(),
 ],
   function (request, response, next) {
