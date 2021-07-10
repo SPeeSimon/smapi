@@ -1,25 +1,14 @@
 const express = require("express");
-const Query = require("../dao/pg");
+const {ModelDAO} = require('../dao/ModelDAO');
 const {isNumber, isString, toNumber} = require("../utils/validations");
 
 var router = express.Router();
 
 
-function rowToModelgroup(row) {
-  return {
-    id: Number(row.mg_id),
-    name: row.mg_name,
-    path: row.mg_path,
-  };
-}
-
 router.get("/", function (request, response, next) {
-  Query({
-    name: "ModelgroupList",
-    text: "select mg_id, mg_name, mg_path from fgs_modelgroups order by mg_id"
-    })
+  new ModelDAO().getModelsGroups()
     .then((result) => {
-      response.json(result.rows.map(rowToModelgroup));
+      response.json(result);
     })
     .catch((err) => {
       return response.status(500).send("Database Error");
@@ -27,16 +16,12 @@ router.get("/", function (request, response, next) {
 });
 
 router.get("/:id", function (request, response, next) {
-  Query({
-    name: "ModelGroupsRead",
-    text: "select mg_id, mg_name from fgs_modelgroups where mg_id = $1",
-    values: [toNumber(request.params.id)],
-  })
+  new ModelDAO().getModelsGroup(toNumber(request.params.id))
     .then((result) => {
-      if (result.rows.length === 0) {
+      if (!result) {
         return response.status(404).send("No modelgroup found");
       }
-      response.json(rowToModelgroup(result.rows[0]));
+      response.json(result);
     })
     .catch((err) => {
       return response.status(500).send("Database Error");

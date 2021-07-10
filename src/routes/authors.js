@@ -1,29 +1,12 @@
 const express = require("express");
-const Query = require("../dao/pg");
 const {toNumber} = require("../utils/validations");
 const { buildCheckFunction, validationResult, matchedData } = require('express-validator');
 const { authenticatedRequestValidation } = require("./auth/AuthorizationToken");
 const checkBodyAndQuery = buildCheckFunction(['body', 'query']);
+const {AuthorDAO} = require('../dao/AuthorDAO');
 
 var router = express.Router();
 
-
-
-function rowtoAuthor(row) {
-  if (row.au_notes == null) {
-    return {
-      id: row.au_id,
-      name: row.au_name,
-      models: row.count,
-    };
-  }
-  return {
-    id: row.au_id,
-    name: row.au_name,
-    notes: row.au_notes || "",
-    models: row.count,
-  };
-}
 
 router.get("/list/:limit?/:offset?", function (request, response, next) {
   var offset = Number(request.params.offset || 0);
@@ -33,29 +16,16 @@ router.get("/list/:limit?/:offset?", function (request, response, next) {
     return response.status(500).send("Invalid Request");
   }
 
-  limit = Math.min(10000, Math.max(1, limit));
-
-  Query({
-    name: "AuthorsList",
-    text: "select au_id, au_name, au_notes, coalesce(models_for_author, 0) as count \
-          from fgs_authors \
-          left join (\
-            select mo_author, count(mo_id) models_for_author \
-            from fgs_models \
-            group by mo_author\
-          ) model_count on au_id=mo_author \
-          order by au_name asc \
-          limit $1 offset $2",
-    values: [limit, offset],
-  })
+  limit = Math.min(10000, Math.max(20, limit));
+  new AuthorDAO().getAllAuthors(offset, limit)
     .then((result) => {
-      if (result.rows.length === 0) {
+      if (result.length === 0) {
         return response.status(404).send("No authors found");
       }
-      const json = result.rows.map(rowtoAuthor);
-      response.json(json);
+      response.json(result);
     })
     .catch((err) => {
+      console.log('error', err)
       return response.status(500).send("Database Error");
     });
 });
@@ -66,25 +36,14 @@ router.get("/:id", function (request, response, next) {
     return response.status(500).send("Invalid Request");
   }
 
-  console.log("Check auth", request.get("Authorization"));
+  // console.log("Check auth", request.get("Authorization"));
 
-  Query({
-    name: "AuthorById",
-    text: "select au_id, au_name, au_notes, coalesce(models_for_author, 0) as count \
-          from fgs_authors \
-          left join (\
-            select mo_author, count(mo_id) models_for_author \
-            from fgs_models \
-            group by mo_author\
-          ) model_count on au_id=mo_author \
-          where au_id = $1",
-    values: [id],
-  })
+  new AuthorDAO().getAuthor(id)
     .then((result) => {
-      if (0 == result.rows.length) {
+      if (!result) {
         return response.status(404).send("author not found");
       }
-      response.json(rowtoAuthor(result.rows[0]));
+      response.json(result);
     })
     .catch((err) => {
       return response.status(500).send("Database Error");
@@ -103,23 +62,15 @@ router.post("/", [authenticatedRequestValidation,
   }
 
   const data = matchedData(request);
-  const name = data.name;
-  const email = data.email;
 
-  Query({
-    name: "Insert Author",
-    text: "INSERT INTO fgs_authors(au_id, au_name, au_email) VALUES (DEFAULT, $1, $2) RETURNING au_id",
-    values: [name, email],
-  })
+  new AuthorDAO().addAuthor(data)
     .then((result) => {
-      if (0 == result.rows.length) {
+      if (!result) {
         return response.status(412).send("author not created");
       }
       response.status(201).set({
         'Location': `/author/${result.rows[0].au_id}`
-      }).json(rowtoAuthor(
-        Object.assign({}, { au_notes: null, count: 0, au_name: name, }, result.rows[0])
-      ));
+      }).json(result);
     })
     .catch((err) => {
       console.log(err.severity, 'inserting author (', err.code, '):', err.detail)
@@ -128,6 +79,3 @@ router.post("/", [authenticatedRequestValidation,
 });
 
 module.exports = router;
-
-// get by email
-"SELECT au_id, au_name, au_email, au_notes FROM fgs_authors WHERE au_email=$1"

@@ -1,8 +1,10 @@
 "use strict";
 const { isNumber, isString, toNumber } = require("../utils/validations");
+const util = require("util");
+
 const DEFAULT_LIMIT = 20;
 const OFFSET_START = 0;
-
+const DATE_REGEXP = /[0-9]{4}-[0-1][0-9]-[0-3][0-9]/; // regexp for date formatted: yyyy-mm-dd
 
 class ObjectSearchQuery {
   queryName = "Search Object By ";
@@ -11,7 +13,7 @@ class ObjectSearchQuery {
   queryPaging = "";
   orderBy = "ob_modified DESC";
 
-  constructor() { }
+  constructor() {}
 
   currentParamIndex() {
     return "$" + (this.queryParams.length + 1);
@@ -24,19 +26,19 @@ class ObjectSearchQuery {
     return this;
   }
   forModifedOn(modified) {
-    if (modified !== undefined && /[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(modified)) {
+    if (modified !== undefined && DATE_REGEXP.test(modified)) {
       this.withFilter("MO", `date_trunc('DAY', ob_modified) = ${this.currentParamIndex()}`, modified);
     }
     return this;
   }
   forModifiedSince(modified) {
-    if (modified !== undefined && /[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(modified)) {
+    if (modified !== undefined && DATE_REGEXP.test(modified)) {
       this.withFilter("MS", `ob_modified >= ${this.currentParamIndex()}`, modified);
     }
     return this;
   }
   forModifiedBefore(modified) {
-    if (modified !== undefined && /[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(modified)) {
+    if (modified !== undefined && DATE_REGEXP.test(modified)) {
       this.withFilter("MB", `ob_modified < ${this.currentParamIndex()}`, modified);
     }
     return this;
@@ -63,6 +65,16 @@ class ObjectSearchQuery {
           "POINT(" + latlon[0] + " " + latlon[1] + ")"
         );
       }
+    }
+    return this;
+  }
+  forBoundary(north, east, south, west) {
+    if (isNumber(north) && isNumber(east) && isNumber(south) && isNumber(west)) {
+      this.withFilter(
+        "Wi",
+        `ST_Within(wkb_geometry, ST_GeomFromText(${this.currentParamIndex()}, 4326))`,
+        util.format("POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))", Number(west), Number(south), Number(west), Number(north), Number(east), Number(north), Number(east), Number(south), Number(west), Number(south))
+      );
     }
     return this;
   }
@@ -181,22 +193,26 @@ class ObjectSearchQuery {
       const order_col = order_cols[toNumber(order.column)] || "mo_modified";
       const order_dir = order.dir === "asc" ? "ASC" : "DESC";
       this.orderBy = `${order_col} ${order_dir}`;
+      this.queryName += 'Sort ' + order.column;
     }
     return this;
   }
   makeQuery() {
     return {
-      name: this.queryName,
-      text: "SELECT ob_id, ob_text, ob_country, ob_model, ST_Y(wkb_geometry) AS ob_lat, ST_X(wkb_geometry) AS ob_lon, \
-                   ob_heading, ob_gndelev, ob_elevoffset, mo_shared, mg_id, mg_name, mo_name, \
+      name: this.queryName + this.queryParams.length,
+      text:
+        "SELECT ob_id, ob_text, ob_country, ob_model, ST_Y(wkb_geometry) AS ob_lat, ST_X(wkb_geometry) AS ob_lon, \
+                   ob_heading, ob_gndelev, ob_elevoffset, mo_shared, mg_id, mg_name, mo_name, gp_id, gp_name, \
+                   trim(co_code) as co_code, trim(co_name) as co_name, trim(co_three) as co_three, \
                    concat('Objects/', fn_SceneDir(wkb_geometry), '/', fn_SceneSubDir(wkb_geometry), '/') AS obpath, ob_tile \
             FROM fgs_objects \
             LEFT JOIN fgs_models on fgs_models.mo_id = fgs_objects.ob_model \
             LEFT JOIN fgs_modelgroups on fgs_models.mo_shared = fgs_modelgroups.mg_id \
+            LEFT JOIN fgs_groups ON ob_group=gp_id \
+            LEFT JOIN fgs_countries ON ob_country = co_code \
             WHERE " +
         ["1=1", ...this.queryFilters].join(" AND ") +
-        " ORDER BY " +
-        this.orderBy +
+        " ORDER BY " + this.orderBy +
         this.queryPaging,
       values: this.queryParams,
     };

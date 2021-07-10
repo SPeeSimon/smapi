@@ -1,47 +1,20 @@
 const express = require("express");
-const Query = require("../dao/pg");
-const {isNumber, isString, toNumber} = require("../utils/validations");
+const { StatisticsDAO } = require("../dao/StatisticsDAO");
 
 var router = express.Router();
 
 router.get("/", function (request, response, next) {
-  Query({
-    name: "Statistics ",
-    text: "with t1 as (\
-              select count(*) objects \
-              from fgs_objects\
-          ), t2 as (\
-              select count(*) models \
-              from fgs_models\
-          ), t3 as (\
-              select count(*) authors \
-              from fgs_authors\
-          ), t4 as (\
-              select count(*) navaids \
-              from fgs_navaids\
-          ), t5 as (\
-              select count(*) pends \
-              from fgs_position_requests\
-          ), t6 as (\
-              select count(*) gndelevs \
-              from fgs_objects \
-              where ob_gndelev=-9999\
-          ) \
-          select objects, models, authors, navaids, pends, gndelevs \
-          from t1, t2, t3, t4, t5, t6",
-    values: [],
-  })
+  new StatisticsDAO()
+    .getDatabaseCounts()
     .then((result) => {
-      var row = result.rows.length ? result.rows[0] : {};
-
       response.json({
         stats: {
-          objects: Number(row.objects || 0),
-          models: Number(row.models || 0),
-          authors: Number(row.authors || 0),
-          navaids: Number(row.navaids || 0),
-          pending: Number(row.pends || 0),
-          elev: Number(row.gndelevs || 0),
+          objects: result.objects,
+          models: result.models,
+          authors: result.authors,
+          navaids: result.navaids,
+          pending: result.pending,
+          elev: result.groundElevations,
         },
       });
     })
@@ -51,24 +24,22 @@ router.get("/", function (request, response, next) {
 });
 
 router.get("/all", function (request, response, next) {
-  Query({
-    name: "StatisticsAll",
-    text: "SELECT * from fgs_statistics ORDER BY st_date",
-    values: [],
-  })
+  const convertDbRow = (row) => {
+    return {
+      date: row.date,
+      objects: row.objects,
+      models: row.models,
+      authors: row.authors,
+      signs: row.signs,
+      navaids: row.navaids,
+    };
+  };
+
+  new StatisticsDAO()
+    .getStatistics()
     .then((result) => {
-      var reply = { statistics: [] };
-      result.rows.forEach(function (row) {
-        reply.statistics.push({
-          date: row.st_date,
-          objects: Number(row.st_objects),
-          models: Number(row.st_models),
-          authors: Number(row.st_authors),
-          signs: Number(row.st_signs),
-          navaids: Number(row.st_navaids),
-        });
-      });
-      response.json(reply);
+      const stats = result.map(convertDbRow);
+      response.json({ statistics: stats });
     })
     .catch((err) => {
       return response.status(500).send("Database Error");
@@ -76,43 +47,29 @@ router.get("/all", function (request, response, next) {
 });
 
 router.get("/models/byauthor/:limit?/:offset?/:days?", function (request, response, next) {
-  var offset = Number(request.params.offset || 0);
-  var limit = Number(request.params.limit || 100);
-  var days = Number(request.params.days || 0);
+  const offset = Number(request.params.offset || 0);
+  const limit = Number(request.params.limit || 100);
+  const days = Number(request.params.days || 0);
 
-  var QueryArgs = days > 0
-    ? {
-        name: "StatisticsModelsByAuthorAndRange",
-        text: "SELECT COUNT(mo_id) AS count, au_name,au_id \
-              FROM fgs_models, fgs_authors \
-              WHERE mo_author = au_id and mo_modified > now()::date - (interval '1 days' * $3) \
-              GROUP BY au_id \
-              ORDER BY count DESC \
-              limit $1 offset $2 ",
-        values: [limit, offset, days],
-      }
-    : {
-        name: "StatisticsModelsByAuthor",
-        text: "SELECT COUNT(mo_id) AS count, au_name,au_id \
-              FROM fgs_models, fgs_authors \
-              WHERE mo_author = au_id \
-              GROUP BY au_id \
-              ORDER BY count DESC \
-              limit $1 offset $2 ",
-        values: [limit, offset],
-      };
+  let query;
+  if (days > 0) {
+    query = new StatisticsDAO().getStatisticsModelsByAuthorAndRange(limit, offset, days);
+  } else {
+    query = new StatisticsDAO().getStatisticsModelsByAuthor(limit, offset);
+  }
 
-  Query(QueryArgs)
+  const convertDbRow = (row) => {
+    return {
+      author: row.author,
+      author_id: row.id,
+      count: row.count,
+    };
+  };
+
+  query
     .then((result) => {
-      var reply = { modelsbyauthor: [] };
-      result.rows.forEach(function (row) {
-        reply.modelsbyauthor.push({
-          author: row.au_name.trim(),
-          author_id: Number(row.au_id),
-          count: Number(row.count),
-        });
-      });
-      response.json(reply);
+      const values = result.map(convertDbRow);
+      response.json({ modelsbyauthor: values });
     })
     .catch((err) => {
       return response.status(500).send("Database Error");
@@ -120,37 +77,27 @@ router.get("/models/byauthor/:limit?/:offset?/:days?", function (request, respon
 });
 
 router.get("/models/bycountry", function (request, response, next) {
-  Query({
-    name: "StatisticsModelsByCountry",
-    text: "SELECT trim(co_name) as co_name, \
-                  co_three, \
-                  COUNT(ob_id) AS count, \
-                  COUNT(ob_id)/(SELECT shape_sqm/10000000000 FROM gadm2_meta WHERE iso ILIKE co_three) AS density \
-            FROM fgs_objects \
-            INNER JOIN fgs_countries ON ob_country = co_code \
-            WHERE co_three IS NOT NULL \
-            GROUP BY co_code \
-            HAVING COUNT(ob_id)/(SELECT shape_sqm FROM gadm2_meta WHERE iso ILIKE co_three) > 0 \
-            ORDER BY count DESC",
-          })
+  const convertDbRow = (row) => {
+    return {
+      id: row.code,
+      name: row.name,
+      count: row.count,
+      density: row.density,
+    };
+  };
+
+  new StatisticsDAO()
+    .getModelsByCountry()
     .then((result) => {
       response.json({
-        modelsbycountry: result.rows.map(rowToModelsByCountry),
+        modelsbycountry: result.map(convertDbRow),
       });
     })
     .catch((err) => {
-      console.error('database error', err)
+      console.error("database error", err);
       return response.status(500).send("Database Error");
     });
 });
 
-function rowToModelsByCountry(row) {
-  return {
-    id: row.co_three.trim(),
-    name: row.co_name.trim(),
-    count: Number(row.count),
-    density: Number(row.density || 0),
-  };
-}
 
 module.exports = router;

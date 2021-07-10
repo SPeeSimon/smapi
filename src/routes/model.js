@@ -1,13 +1,13 @@
 const express = require("express");
-const Query = require("../dao/pg");
 const tar = require("tar");
 const MultiStream = require("../utils/MultiStream");
-const { buildCheckFunction, validationResult, matchedData, param } = require('express-validator');
+const { buildCheckFunction, validationResult, matchedData, param } = require("express-validator");
 const { authenticatedRequestValidation } = require("./auth/AuthorizationToken");
-const checkBodyAndQuery = buildCheckFunction(['body', 'query']);
+const checkBodyAndQuery = buildCheckFunction(["body", "query"]);
+const { ModelDAO } = require("../dao/ModelDAO");
+const { ObjectDAO } = require("../dao/ObjectDAO");
 
 var router = express.Router();
-
 
 router.get("/:id/tgz", function (request, response, next) {
   var id = Number(request.params.id || 0);
@@ -15,24 +15,18 @@ router.get("/:id/tgz", function (request, response, next) {
     return response.status(500).send("Invalid Request");
   }
 
-  Query({
-    name: "ModelsTarball",
-    text: "select mo_path, mo_modelfile, mo_modified from fgs_models where mo_id = $1",
-    values: [id],
-  })
+  new ModelDAO()
+    .getModelFiles(id)
     .then((result) => {
-      if (0 == result.rows.length) {
+      if (!result) {
         return response.status(404).send("model not found");
       }
-      if (result.rows[0].mo_modelfile == null) {
-        return response.status(404).send("no modelfile");
-      }
 
-      var buf = Buffer.from(result.rows[0].mo_modelfile, "base64");
+      var buf = Buffer.from(result.modelfile, "base64");
       response.writeHead(200, {
         "Content-Type": "application/gzip",
-        "Content-Disposition": `attachment; filename="${result.rows[0].mo_path}"`,
-        "Last-Modified": result.rows[0].mo_modified,
+        "Content-Disposition": `attachment; filename="${result.path}"`,
+        "Last-Modified": result.modified,
       });
       response.end(buf);
     })
@@ -47,28 +41,22 @@ function getThumb(request, response, next) {
     return response.status(500).send("Invalid Request");
   }
 
-  Query({
-    name: "ModelsThumb",
-    text: "select mo_thumbfile,mo_modified from fgs_models where mo_id = $1",
-    values: [id],
-  })
+  new ModelDAO()
+    .getThumbnail(id)
     .then((result) => {
-      if (0 == result.rows.length) {
+      if (!result) {
         return response.status(404).send("model not found");
       }
 
-      if (result.rows[0].mo_thumbfile == null) {
-        return response.status(404).send("no thumbfile");
-      }
-
-      var buf = Buffer.from(result.rows[0].mo_thumbfile, "base64");
+      var buf = Buffer.from(result.thumbfile, "base64"); // thumbnail?
       response.writeHead(200, {
         "Content-Type": "image/jpeg",
-        "Last-Modified": result.rows[0].mo_modified,
+        "Last-Modified": result.modified,
       });
       response.end(buf);
     })
     .catch((err) => {
+      console.log(err);
       response.status(500).send("Database Error");
     });
 }
@@ -76,30 +64,24 @@ function getThumb(request, response, next) {
 router.get("/:id/thumb", getThumb);
 router.get("/:id/thumb.jpg", getThumb);
 
-
 router.get("/:id/positions", function (request, response, next) {
   var id = Number(request.params.id || 0);
   if (isNaN(id)) {
     return response.status(500).send("Invalid Request");
   }
 
-  Query({
-    name: "ModelPositions",
-    text: "select ob_id, ob_model, ST_AsGeoJSON(wkb_geometry),ob_country,ob_gndelev \
-            from fgs_objects \
-            where ob_model = $1 \
-            order by ob_country",
-    values: [id],
-  })
+  new ObjectDAO()
+    .getObjectsByModel(id)
     .then((result) => {
       var featureCollection = {
         type: "FeatureCollection",
-        features: result.rows.map(rowToModelPositionFeature),
+        features: result.map(rowToModelPositionFeature),
         model: id,
       };
       return response.json(featureCollection);
     })
     .catch((err) => {
+      console.log(err);
       return response.status(500).send("Database Error");
     });
 });
@@ -107,13 +89,20 @@ router.get("/:id/positions", function (request, response, next) {
 function rowToModelPositionFeature(row) {
   return {
     type: "Feature",
-    geometry: JSON.parse(row.st_asgeojson),
-    id: row.ob_id,
+    geometry: toGeoJson(row.position),
+    id: row.id,
     properties: {
-      id: row.ob_id,
-      gndelev: row.ob_gndelev,
-      country: row.ob_country,
+      id: row.id,
+      gndelev: row.position.groundElevation,
+      country: row.country,
     },
+  };
+}
+
+function toGeoJson(position) {
+  return {
+    type: "Point",
+    coordinates: [position.longitude, position.latitude],
   };
 }
 
@@ -123,51 +112,39 @@ router.get("/:id", function (request, response, next) {
     return response.status(500).send("Invalid Request");
   }
 
-  Query({
-    name: "ModelDetail",
-    text: "select mo_id,mo_path,mo_modified,mo_author,mo_name,mo_notes,mo_modelfile,mo_shared,mg_id,mg_name,au_name \
-          FROM fgs_models \
-          LEFT JOIN fgs_modelgroups on fgs_models.mo_shared = fgs_modelgroups.mg_id \
-          LEFT JOIN fgs_authors on mo_author=au_id \
-          where mo_id = $1",
-    values: [id],
-  })
+  new ModelDAO()
+    .getModel(id)
     .then((result) => {
-      if (0 == result.rows.length) {
+      if (!result) {
         return response.status(404).send("model not found");
       }
 
-      var row = result.rows[0];
+      var row = result;
       var ret = {
-        id: row.mo_id,
-        filename: row.mo_path,
-        modified: row.mo_modified,
-        authorId: row.mo_author,
-        name: row.mo_name,
-        notes: row.mo_notes,
-        shared: row.mo_shared,
-        author: row.au_name,
-        authorId: row.mo_author,
-        modelgroup: {
-          id: row.mg_id,
-          name: row.mg_name,
-          shared: row.mg_id == 0,
-        },
-        // raw: row.mo_modelfile,
+        id: result.metadata.id,
+        filename: result.metadata.filename,
+        modified: result.metadata.lastUpdated,
+        authorId: result.metadata.author.id,
+        name: result.metadata.name,
+        notes: result.metadata.description,
+        shared: result.metadata.modelsGroup?.id,
+        author: result.metadata.author,
+        modelgroup: result.metadata.modelsGroup,
+        // raw: row.modelFiles,
         content: [],
       };
 
-      if (!row.mo_modelfile) {
+      if (!row.modelFiles) {
         // no model file (should be error)
         return response.json(ret);
       }
 
-      var streambuf = new MultiStream(Buffer.from(row.mo_modelfile, "base64"));
+      var streambuf = new MultiStream(Buffer.from(row.modelFiles, "base64"));
       streambuf.on("end", (a) => {
         response.json(ret);
       });
 
-      streambuf.on("error", e => console.log('error reading stream', e));
+      streambuf.on("error", (e) => console.log("error reading stream", e));
 
       streambuf.pipe(
         tar.t({
@@ -177,91 +154,66 @@ router.get("/:id", function (request, response, next) {
               filesize: entry.header.size,
             });
           },
-          onerror: er => console.log('tar error', er),
+          onerror: (er) => console.log("tar error", er),
         })
       );
     })
     .catch((err) => {
+      console.log(err);
       return response.status(500).send("Database Error");
     });
 });
 
-router.post("/", [authenticatedRequestValidation,
-  checkBodyAndQuery('path').not().isEmpty().trim().escape(),
-  checkBodyAndQuery('author').isNumeric().toInt(),
-  checkBodyAndQuery('name').not().isEmpty().trim().escape(),
-  checkBodyAndQuery('notes').trim().escape(),
-  checkBodyAndQuery('thumbfile').isBase64(),
-  checkBodyAndQuery('modelfile').isBase64().notEmpty(),
-  checkBodyAndQuery('shared').isNumeric().toInt(),
+router.post(
+  "/",
+  [
+    authenticatedRequestValidation,
+    checkBodyAndQuery("path").not().isEmpty().trim().escape(),
+    checkBodyAndQuery("author").isNumeric().toInt(),
+    checkBodyAndQuery("name").not().isEmpty().trim().escape(),
+    checkBodyAndQuery("notes").trim().escape(),
+    checkBodyAndQuery("thumbfile").isBase64(),
+    checkBodyAndQuery("modelfile").isBase64().notEmpty(),
+    checkBodyAndQuery("shared").isNumeric().toInt(),
   ],
   function (request, response, next) {
-  // insert new model
+    // insert new model
 
-  const errors = validationResult(request);
-  if (!errors.isEmpty()) {
-    return response.status(400).json({ errors: errors.array() });
+    const errors = validationResult(request);
+    if (!errors.isEmpty()) {
+      return response.status(400).json({ errors: errors.array() });
+    }
+
+    const path = request.query.path || request.body.path;
+    const author = request.query.author || request.body.author;
+    const name = request.query.name || request.body.name;
+    const notes = request.query.notes || request.body.notes;
+    const thumbfile = request.query.thumbfile || request.body.thumbfile;
+    const modelfile = request.query.modelfile || request.body.modelfile;
+    const shared = request.query.shared || request.body.shared;
+
+    new ModelDAO()
+      .addModel({})
+      .then((result) => {
+        if (0 == result.rows.length) {
+          return response.status(412).send("model not created");
+        }
+        response
+          .status(201)
+          .set({
+            Location: `/model/${result.rows[0].mo_id}`,
+          })
+          .json(result.rows[0]);
+      })
+      .catch((err) => {
+        console.log(err.severity, "inserting model (", err.code, "):", err.detail);
+        return response.status(500).send("Database Error");
+      });
   }
+);
 
-  const path = request.query.path || request.body.path;
-  const author = request.query.author || request.body.author;
-  const name = request.query.name || request.body.name;
-  const notes = request.query.notes || request.body.notes;
-  const thumbfile = request.query.thumbfile || request.body.thumbfile;
-  const modelfile = request.query.modelfile || request.body.modelfile;
-  const shared = request.query.shared || request.body.shared;
-
-  Query({
-    name: "Insert Model",
-    text: "INSERT INTO fgs_models (mo_id, mo_path, mo_author, mo_name, mo_notes, mo_thumbfile, mo_modelfile, mo_shared, mo_modified) \
-            VALUES (DEFAULT, $1, $2, $3, $4, $5, $6, $7, now()) \
-            RETURNING mo_id",
-    values: [
-      path, Number(author), name, notes, thumbfile, modelfile, Number(shared)
-    ],
-  })
-    .then((result) => {
-      if (0 == result.rows.length) {
-        return response.status(412).send("model not created");
-      }
-      response.status(201).set({
-        'Location': `/model/${result.rows[0].mo_id}`
-      }).json(result.rows[0]);
-
-    })
-    .catch((err) => {
-      console.log(err.severity, 'inserting model (', err.code, '):', err.detail)
-      return response.status(500).send("Database Error");
-    });
+router.delete("/:id", [authenticatedRequestValidation, param("id").isInt()], function (request, response, next) {
+  return response.status(500).send("Not implemented");
 });
-
-
-router.delete("/:id", [
-  authenticatedRequestValidation,
-  param('id').isInt(),
-],
-  function (request, response, next) {
-  var id = Number(request.params.id);
-
-  if (isNaN(id)) {
-    return response.status(500).send("Invalid Request");
-  }
-
-  Query({
-    name: "Delete Model",
-    text: "DELETE FROM fgs_models WHERE mo_id=$1;",
-    values: [id],
-  })
-    .then((result) => {
-      if (0 == result.rowCount) {
-        return response.status(404).send(`deleting model with id ${id} failed`);
-      }
-      return response.status(204).send("Deleted");
-    })
-    .catch((err) => {
-      return response.status(500).send("Database Error");
-    });
-});
-
 
 module.exports = router;

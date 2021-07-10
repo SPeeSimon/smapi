@@ -2,7 +2,7 @@
 
 var pg = require("pg");
 
-console.log("connecting to", `${process.env.PGUSER}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}`);
+console.log("connecting to db", `${process.env.PGUSER}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}`);
 var pool = new pg.Pool({
   // use .env for connection details with values for: PGHOST, PGPORT, PGDATABASE, PGUSER, PGPASSWORD
   max: 10, // max number of clients in the pool
@@ -25,7 +25,7 @@ function Query(options, callback) {
     return pool
     .query(options)
     .catch((error) => {
-      console.error("error running query", error);
+      console.error("error running query", options, error);
       return callback(error);
     })
     .then((result) => callback(null, result));    
@@ -33,9 +33,22 @@ function Query(options, callback) {
   return pool
     .query(options)
     .catch(error => {
-      console.error("error running query", error);
+      console.error("error running query", options, error);
       throw error;
     })
 }
 
-module.exports = Query;
+class RequestNotFoundException extends Error {
+  constructor(...params) {
+    super(...params);
+
+    // Maintains proper stack trace for where our error was thrown (only available on V8)
+    if (Error.captureStackTrace) {
+      Error.captureStackTrace(this, RequestNotFoundException)
+    }
+
+    this.name = 'RequestNotFoundException'
+  }
+}
+
+module.exports = {Query, RequestNotFoundException};

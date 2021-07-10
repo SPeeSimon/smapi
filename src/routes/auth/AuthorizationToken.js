@@ -30,7 +30,7 @@ hasAuthenticationToken = function (request) {
   }
 
   const jsonWebToken = authCookie.substring(BEARER.length);
-  const originalPayload = jwt.verify(jsonWebToken, process.env.JWT_SECRET);
+  const originalPayload = jwt.verify(jsonWebToken, process.env.JWT_SECRET); // here we check if the jwt is valid
   return originalPayload ? true : false;
 };
 

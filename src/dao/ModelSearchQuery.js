@@ -2,6 +2,7 @@ const { isNumber, isString, toNumber } = require("../utils/validations");
 
 const DEFAULT_LIMIT = 20;
 const OFFSET_START = 0;
+const DATE_REGEXP = /[0-9]{4}-[0-1][0-9]-[0-3][0-9]/; // regexp for date formatted: yyyy-mm-dd
 
 
 class ModelSearchQuery {
@@ -42,19 +43,19 @@ class ModelSearchQuery {
     return this;
   }
   forModifedOn(modified) {
-    if (modified !== undefined && /[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(modified)) {
+    if (modified !== undefined && DATE_REGEXP.test(modified)) {
       this.withFilter("MO", `date_trunc('DAY', mo_modified) = $${this.currentParamIndex()}`, modified);
     }
     return this;
   }
   forModifiedSince(modified) {
-    if (modified !== undefined && /[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(modified)) {
+    if (modified !== undefined && DATE_REGEXP.test(modified)) {
       this.withFilter("MS", `mo_modified >= $${this.currentParamIndex()}`, modified);
     }
     return this;
   }
   forModifiedBefore(modified) {
-    if (modified !== undefined && /[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(modified)) {
+    if (modified !== undefined && DATE_REGEXP.test(modified)) {
       this.withFilter("MB", `mo_modified < $${this.currentParamIndex()}`, modified);
     }
     return this;
@@ -134,16 +135,20 @@ class ModelSearchQuery {
 
       const order_col = order_cols[toNumber(order.column)] || "mo_modified";
       const order_dir = order.dir === "asc" ? "ASC" : "DESC";
+      this.queryName += 'Srt' + order.column;
       this.orderBy = `${order_col} ${order_dir}`;
     }
     return this;
   }
   makeQuery() {
     return {
-      name: this.queryName,
-      text: "select * FROM fgs_models LEFT JOIN fgs_authors ON au_id=mo_author WHERE " +
-        ["1=1", ...this.queryFilters].join(" AND ") +
-        ' ORDER BY ' + this.orderBy +
+      name: this.queryName + this.queryParams.length,
+      text: "select * \
+            FROM fgs_models \
+            LEFT JOIN fgs_modelgroups on fgs_models.mo_shared = fgs_modelgroups.mg_id \
+            LEFT JOIN fgs_authors on mo_author=au_id \
+            WHERE " + ["1=1", ...this.queryFilters].join(" AND ") +
+          ' ORDER BY ' + this.orderBy +
         this.queryPaging,
       values: this.queryParams,
     };

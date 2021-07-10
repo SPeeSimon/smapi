@@ -1,8 +1,6 @@
 const Query = require("./pg");
 
 class UserDao {
-  constructor() {
-  }
 
   static find = function (authorityId, id) {
     return new Promise((resolve, reject) => {
@@ -57,7 +55,6 @@ class NoAuthenticationFoundError extends Error {
     }
 
     this.name = 'NoAuthenticationFoundError'
-    // Custom debugging information
     this.authority = authority;
     this.externalId = externalId; 
   }

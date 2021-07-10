@@ -1,22 +1,16 @@
 const express = require("express");
-const Query = require("../dao/pg");
+const {RequestDAO} = require('../dao/RequestDao')
 const zlib = require("zlib");
 const util = require("util");
 const { authenticatedRequestValidation } = require("./auth/AuthorizationToken");
 const {toNumber} = require("../utils/validations");
+const unzip = util.promisify(zlib.unzip);
 
 var router = express.Router();
 
-
-const unzip = util.promisify(zlib.unzip);
 router.get("/", function (request, response, next) {
-  Query({
-    name: "GetAllSubmissions",
-    text: "SELECT spr_id,spr_hash,spr_base64_sqlz \
-          FROM fgs_position_requests \
-          ORDER BY spr_id ASC;",
-    values: [],
-  })
+
+  new RequestDAO().getPendingRequests()
     .then((result) => {
       if (result.rows.length === 0) {
         return response.json([]);
@@ -51,13 +45,7 @@ router.get("/", function (request, response, next) {
 });
 
 router.get("/:id", function (request, response, next) {
-  Query({
-    name: "GetSubmissionsById",
-    text: "SELECT spr_id,spr_hash,spr_base64_sqlz \
-          FROM fgs_position_requests \
-          WHERE spr_id=$1;",
-    values: [toNumber(request.params.id)],
-  })
+  new RequestDAO().getRequest(toNumber(request.params.id))
     .then((result) => {
       if (result.rows.length === 0) {
         return response.status(404).send("Submission not found");

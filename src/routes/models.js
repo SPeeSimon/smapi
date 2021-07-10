@@ -1,7 +1,8 @@
 const express = require("express");
-const Query = require("../dao/pg");
-const {isNumber, toNumber} = require("../utils/validations");
+const { Query } = require("../dao/pg");
+const { isNumber, toNumber } = require("../utils/validations");
 const { ModelSearchQuery } = require("../dao/ModelSearchQuery");
+const { ModelDAO } = require("../dao/ModelDAO");
 
 var router = express.Router();
 
@@ -15,12 +16,8 @@ router.get("/bymg/:mg/:limit?/:offset?", function (request, response, next) {
   }
   limit = Math.min(10000, Math.max(1, limit));
 
-  const query = new ModelSearchQuery()
-    .forModelgroup(mg)
-    .withPaging(limit, offset)
-    .makeQuery();
-
-  Query(query)
+  new ModelDAO()
+    .seachModel(new ModelSearchQuery().forModelgroup(mg).withPaging(limit, offset))
     .then((result) => {
       response.json(result.rows.map(rowToModelWithAuthor));
     })
@@ -40,19 +37,13 @@ router.get("/list/:limit?/:offset?", function (request, response, next) {
 
   limit = Math.min(10000, Math.max(1, limit));
 
-  Query({
-    name: "ModelsList",
-    text: "select mo_id, mo_path, mo_name, mo_notes, mo_shared, mo_modified,mo_author,au_name \
-          from fgs_models,fgs_authors \
-          where au_id=mo_author \
-          order by mo_modified desc \
-          limit $1 offset $2 ",
-    values: [limit, offset],
-  })
+  new ModelDAO()
+    .getModelsMetadata(limit, offset)
     .then((result) => {
-      response.json(result.rows.map(rowToModelWithAuthor));
+      response.json(result);
     })
     .catch((err) => {
+      console.log(err);
       return response.status(500).send("Database Error");
     });
 });
@@ -147,15 +138,12 @@ router.get("/search/byauthor/:id/:limit?/:offset?", function (request, response,
 
   if (!isNumber(request.params.id)) {
     return response.status(500).send("Invalid Request: id is not a valid number");
-  }  
+  }
 
-  const query = new ModelSearchQuery()
-                  .forAuthorId(id)
-                  .withPaging(limit, offset)
-                  .makeQuery();
-  Query(query)
+  new ModelDAO()
+    .searchModel(new ModelSearchQuery().forAuthorId(id).withPaging(limit, offset))
     .then((result) => {
-      response.json(result.rows.map(rowToModelWithAuthor));
+      response.json(result.map((model) => model.metadata));
     })
     .catch((err) => {
       return response.status(500).send("Database Error");
@@ -163,26 +151,26 @@ router.get("/search/byauthor/:id/:limit?/:offset?", function (request, response,
 });
 
 function modelSearchHandler(request, response, next) {
-  const query = new ModelSearchQuery()
-    .forFile(request.query.file)
-    .forName(request.query.name)
-    .forNotes(request.query.notes)
-    .forCountry(request.query.country)
-    .forModifedOn(request.query.modifiedOn)
-    .forModifiedBefore(request.query.modifiedBefore)
-    .forModifiedSince(request.query.modifiedSince)
-    .forModelgroup(request.query.modelgroup)
-    .forObjectId(request.query.object)
-    .forAuthor(request.query.author)
-    .forAuthorId(request.query.authorId)
-    .forThumbnail(request.query.thumbnail)
-    .withPaging(request.query.limit, request.query.offset)
-    .withOrder({column: request.query['order.column'], dir: request.query['order.dir']})
-    .makeQuery();
-  // console.log(query);
-  Query(query)
+  new ModelDAO()
+    .searchModel(
+      new ModelSearchQuery()
+        .forFile(request.query.file)
+        .forName(request.query.name)
+        .forNotes(request.query.notes)
+        .forCountry(request.query.country)
+        .forModifedOn(request.query.modifiedOn)
+        .forModifiedBefore(request.query.modifiedBefore)
+        .forModifiedSince(request.query.modifiedSince)
+        .forModelgroup(request.query.modelgroup)
+        .forObjectId(request.query.object)
+        .forAuthor(request.query.author)
+        .forAuthorId(request.query.authorId)
+        .forThumbnail(request.query.thumbnail)
+        .withPaging(request.query.limit, request.query.offset)
+        .withOrder({ column: request.query["order.column"], dir: request.query["order.dir"] })
+    )
     .then((result) => {
-      response.json(result.rows.map(rowToModelWithAuthor));
+      response.json(result.map((model) => model.metadata));
     })
     .catch((err) => {
       console.log("db error", err);
@@ -209,19 +197,3 @@ function rowToModelWithAuthor(row) {
 }
 
 module.exports = router;
-
-// add
-("INSERT INTO fgs_models \
-(mo_id, mo_path, mo_author, mo_name, mo_notes, mo_thumbfile, mo_modelfile, mo_shared) \
-VALUES (DEFAULT, ?, ?, ?, ?, ?, ?, ?) RETURNING mo_id");
-
-// update
-// 'UPDATE fgs_models ';
-//         $query .= "SET mo_path = '".pg_escape_string($modelMD->getFilename())."', ".
-//                   "mo_author = ".pg_escape_string($modelMD->getAuthor()->getId()).", ".
-//                   "mo_name = '".pg_escape_string($modelMD->getName())."', ".
-//                   "mo_notes = '".pg_escape_string($modelMD->getDescription())."', ".
-//                   "mo_thumbfile = '".base64_encode($model->getThumbnail())."', ".
-//                   "mo_modelfile = '".base64_encode($model->getModelFiles()->getPackage())."', ".
-//                   "mo_shared = ".pg_escape_string($modelMD->getModelsGroup()->getId());
-//         $query .= " WHERE mo_id = ".$modelMD->getId();
