@@ -1,5 +1,6 @@
 const express = require("express");
-const Query = require("../../dao/pg");
+const { ModelSearchQuery } = require("../../dao/ModelSearchQuery");
+const { ModelDAO } = require("../../dao/ModelDAO");
 const Feed = require("feed").Feed;
 
 var router = express.Router();
@@ -17,34 +18,28 @@ router.get("/", function (request, response, next) {
     generator: "FlightGear Scenery Models RSS",
   });
 
-  Query({
-    name: "LatestModelsList",
-    text: "SELECT mo_id, mo_path, mo_name, mo_notes, mo_shared, mo_modified, mo_author, au_name \
-          FROM fgs_models \
-          INNER JOIN fgs_authors ON au_id=mo_author \
-          ORDER BY mo_modified DESC \
-          limit $1",
-    values: [50],
-  })
+  new ModelDAO()
+    .searchModel(new ModelSearchQuery().withOrder({column: 5, dir: 'DESC'}).withPaging(50, 0))
     .then((result) => {
-      result.rows.forEach((model) => {
-        const url = `${process.env.SCENERY_MODEL_URL}/${model.mo_id}`;
+      result.forEach((model) => {
+        const url = `${process.env.SCENERY_MODEL_URL}/${model.metadata.id}`;
         feed.addItem({
-          title: model.mo_name,
+          title: model.metadata.name,
           id: url,
           link: url,
-          date: model.mo_modified,
-          description: model.mo_name,
+          date: model.metadata.lastUpdated,
+          description: model.metadata.name,
           author: [
             {
-              name: model.au_name,
-              link: `${process.env.SCENERY_AUTHOR_URL}/${model.mo_author}`,
+              name: model.metadata.author.name,
+              email: 'noreply@flightgear.org', // model.metadata.author.email
+              link: `${process.env.SCENERY_AUTHOR_URL}/${model.metadata.author.id}`,
             },
           ],
         });
       });
 
-      response.set("Content-type", "application/rss+xml");
+      response.set('Content-type', 'application/rss+xml');
       response.send(feed.rss2());
     })
     .catch((err) => {

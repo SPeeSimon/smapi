@@ -1,4 +1,6 @@
 = REST API for the scenemodels database
 == V1.0
 
-Write some docs here
+= Development
+
+Create a `.env` file from `.env.template` and fill in the properties.

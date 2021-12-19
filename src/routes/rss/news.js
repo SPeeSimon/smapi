@@ -1,5 +1,5 @@
 const express = require("express");
-const Query = require("../../dao/pg");
+const {NewsPostDAO} = require("../../dao/NewsPostDAO");
 const Feed = require("feed").Feed;
 
 var router = express.Router();
@@ -17,27 +17,19 @@ router.get("/", function (request, response, next) {
     generator: "FlightGear Scenery News RSS",
   });
 
-  Query({
-    name: "LatestNewsList",
-    text: "SELECT ne_id, ne_timestamp, ne_author, au_name, ne_text \
-          FROM public.fgs_news \
-          LEFT JOIN fgs_authors on au_id=ne_author \
-          ORDER BY ne_timestamp DESC \
-          limit $1",
-    values: [10],
-  })
+  new NewsPostDAO().getLatestNewsPosts(10)
     .then((result) => {
-      result.rows.forEach((post) => {
-        const url =  `${process.env.SCENERY_NEWS_URL}/${post.ne_id}`;
+      result.forEach((post) => {
+        const url =  `${process.env.SCENERY_NEWS_URL}/${post.id}`;
         feed.addItem({
           id: url,
           link: url,
-          date: post.ne_timestamp,
-          description: post.ne_text,
+          date: post.timestamp,
+          description: post.text,
           author: [
             {
-              name: post.au_name,
-              link: `${process.env.SCENERY_AUTHOR_URL}/${post.ne_author}`,
+              name: post.author.name,
+              link: `${process.env.SCENERY_AUTHOR_URL}/${post.author.id}`,
             },
           ],
         });
