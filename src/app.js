@@ -39,6 +39,7 @@ if (process.env.node_env === "development") {
 }
 
 //app.use('/', require('./routes/far'));
+app.use('/', require('./routes/redirects'));
 app.use('/ts', require('./routes/ts'));
 app.use("/scenemodels/author", require("./routes/authors"));
 app.use("/scenemodels/model", require("./routes/model"));
