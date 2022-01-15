@@ -22,71 +22,75 @@ class Redirector{
 
 
 const redirections = [
-    new Redirector('AddModel', 'form', ''),
-    new Redirector('AddModel', 'addRequest', ''),
-    new Redirector('AddModel', 'success', ''),
-    new Redirector('AddModelValidator', 'viewRequest', ''),
-    new Redirector('AddModelValidator', 'modelViewer', ''),
-    new Redirector('AddModelValidator', 'validateRequest', ''),
-    new Redirector('AddObjects', 'form', ''),
-    new Redirector('AddObjects', 'massiveform', ''),
-    new Redirector('AddObjects', 'check', ''),
-    new Redirector('AddObjects', 'confirmMass', ''),
-    new Redirector('AddObjectsValidator', 'viewRequest', ''),
+    // new Redirector('AddModel', 'form', ''),
+    // new Redirector('AddModel', 'addRequest', ''),
+    // new Redirector('AddModel', 'success', ''),
+    // new Redirector('AddModelValidator', 'viewRequest', ''),
+    // new Redirector('AddModelValidator', 'modelViewer', ''),
+    // new Redirector('AddModelValidator', 'validateRequest', ''),
+    // new Redirector('AddObjects', 'form', ''),
+    // new Redirector('AddObjects', 'massiveform', ''),
+    // new Redirector('AddObjects', 'check', ''),
+    // new Redirector('AddObjects', 'confirmMass', ''),
+    // new Redirector('AddObjectsValidator', 'viewRequest', ''),
     new Redirector('Authors', 'view', `${process.env.SCENERY_URL}/#/author/:id`, true),
     new Redirector('Authors', 'browse', `${process.env.SCENERY_URL}/#/authors/`),
-    new Redirector('DeleteObjects', 'findform', ''),
-    new Redirector('DeleteObjects', 'findObjWithPos', ''),
-    new Redirector('DeleteObjects', 'confirmDeleteForm', ''),
-    new Redirector('DeleteObjects', 'requestForDelete', ''),
-    new Redirector('GenericValidator', 'rejectRequest', ''),
-    new Redirector('Index', 'index', ''),
-    new Redirector('Models', 'browse', '/models'),
+    // new Redirector('DeleteObjects', 'findform', ''),
+    // new Redirector('DeleteObjects', 'findObjWithPos', ''),
+    // new Redirector('DeleteObjects', 'confirmDeleteForm', ''),
+    // new Redirector('DeleteObjects', 'requestForDelete', ''),
+    // new Redirector('GenericValidator', 'rejectRequest', ''),
+    new Redirector('Index', 'index', `${process.env.SCENERY_URL}/`),
+    new Redirector('Models', 'browse', `${process.env.SCENERY_URL}/#/models/`),
     new Redirector('Models', 'browseRecent', `${process.env.SCENERY_URL}/#/models/`),
     new Redirector('Models', 'view', `${process.env.SCENERY_URL}/#/model/:id`, true),
-    new Redirector('Models', 'modelViewer', ''),
-    new Redirector('Models', 'thumbnail', ''),
-    new Redirector('Models', 'contentFilesInfos', ''),
-    new Redirector('Models', 'getAC3D', ''),
-    new Redirector('Models', 'getPackage', ''),
-    new Redirector('Models', 'getTexture', ''),
-    new Redirector('Models', 'getRawFile', ''),
-    new Redirector('Models', 'getFile', ''),
+    // new Redirector('Models', 'modelViewer', ''), // `${process.env.SCENERY_URL}/#/model/:id`
+    new Redirector('Models', 'thumbnail', `${process.env.SCENERY_URL}/scenemodels/model/:id/thumb`, true),
+    // new Redirector('Models', 'contentFilesInfos', ''),
+    // new Redirector('Models', 'getAC3D', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/ac3d` application/octet-stream
+    new Redirector('Models', 'getPackage', `${process.env.SCENERY_URL}/scenemodels/model/:id/tgz`, true),
+    // new Redirector('Models', 'getTexture', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/texture` // image/png
+    // new Redirector('Models', 'getFile', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/content-file/:name` https://scenery.flightgear.org/app.php?c=Models&a=getFile&id=5312&name=htbocag1.png
     new Redirector('News', 'display', `${process.env.SCENERY_URL}/#/news/`),
     new Redirector('Objects', 'view', `${process.env.SCENERY_URL}/#/object/:id`, true),
     new Redirector('Objects', 'search', `${process.env.SCENERY_URL}/#/objects/`),
-    new Redirector('ObjectValidator', 'viewRequest', ''),
+    // new Redirector('ObjectValidator', 'viewRequest', ''),
     new Redirector('Plain', 'statistics', `${process.env.SCENERY_URL}/#/stats`),
-    new Redirector('Request', 'getGroupModelsMDXML', ''),
-    new Redirector('Request', 'getModelInfoXML', ''),
-    new Redirector('Request', 'getCountryCodeAtXML', ''),
-    new Redirector('UpdateModel', 'selectModelForm', ''),
-    new Redirector('UpdateModel', 'modelUpdateForm', ''),
-    new Redirector('UpdateModel', 'addRequest', ''),
-    new Redirector('UpdateModel', 'success', ''),
-    new Redirector('UpdateModelValidator', 'viewRequest', ''),
-    new Redirector('UpdateModelValidator', 'modelViewer', ''),
-    new Redirector('UpdateModelValidator', 'getOldModelTexture', ''),
-    new Redirector('UpdateModelValidator', 'getOldModelTextureTN', ''),
-    new Redirector('UpdateObjects', 'findform', ''),
-    new Redirector('UpdateObjects', 'findObjWithPos', ''),
-    new Redirector('UpdateObjects', 'updateForm', ':id_to_update'),
-    new Redirector('UpdateObjects', 'check', ''),
-    new Redirector('Validator', 'actionOnRequest', ''),
-    new Redirector('Validator', 'validateRequest', ''),
-    new Redirector('Validator', 'rejectRequest', ''),
-    new Redirector('Validator', 'getNewModelPack', ''),
-    new Redirector('Validator', 'getNewModelAC3D', ''),
-    new Redirector('Validator', 'getNewModelThumb', ''),
-    new Redirector('Validator', 'getNewModelTexture', ''),
-    new Redirector('Validator', 'getNewModelTextureTN', '')
+    // new Redirector('Request', 'getGroupModelsMDXML', ''),
+    // new Redirector('Request', 'getModelInfoXML', ''),
+    // new Redirector('Request', 'getCountryCodeAtXML', ''),
+    // new Redirector('ModelRequest', 'getGroupModelsMDXML', ''), // addmodel|updatemodel
+    // new Redirector('ModelRequest', 'getModelInfoXML', ''), // addmodel|updatemodel
+    // new Redirector('ModelRequest', 'getCountryCodeAtXML', ''), // addmodel|updatemodel
+    // new Redirector('UpdateModel', 'selectModelForm', ''),
+    // new Redirector('UpdateModel', 'modelUpdateForm', ''), // https://scenery.flightgear.org/app.php?c=UpdateModel&a=modelUpdateForm&modelId=5312
+    // new Redirector('UpdateModel', 'addRequest', ''),
+    // new Redirector('UpdateModel', 'success', ''),
+    // new Redirector('UpdateModelValidator', 'viewRequest', ''),
+    // new Redirector('UpdateModelValidator', 'modelViewer', ''),
+    // new Redirector('UpdateModelValidator', 'getOldModelTexture', ''),
+    // new Redirector('UpdateModelValidator', 'getOldModelTextureTN', ''),
+    // new Redirector('UpdateObjects', 'findform', ''),
+    // new Redirector('UpdateObjects', 'findObjWithPos', ''),
+    // new Redirector('UpdateObjects', 'updateForm', ''),
+    // new Redirector('UpdateObjects', 'check', ''),
+    // new Redirector('Validator', 'actionOnRequest', ''),
+    // new Redirector('Validator', 'validateRequest', ''),
+    // new Redirector('Validator', 'rejectRequest', ''),
+    // new Redirector('Validator', 'getNewModelPack', ''),
+    // new Redirector('Validator', 'getNewModelAC3D', ''),
+    // new Redirector('Validator', 'getNewModelThumb', ''),
+    // new Redirector('Validator', 'getNewModelTexture', ''),
+    // new Redirector('Validator', 'getNewModelTextureTN', '')
 ];
+
 
 function queryValuesForRedirect(request, hasId) {
     const excludeParams = hasId ? ['a', 'c', 'id'] : ['a', 'c'];
     return Object.entries(request.query)
             .filter(q => !excludeParams.includes(q[0]));
 }
+
 
 function makeRedirectUrl(requestedAction, request){
     const newLocation = requestedAction.newLocation.replace(':id', request.query.id);
@@ -98,12 +102,16 @@ function makeRedirectUrl(requestedAction, request){
     return newLocation + '?redirected=true&' + additionalQueryParams.map(q => q[0]+'='+q[1]).join('&');
 }
 
+/**
+ * Sends a redirect for the old url to app.php if possible.
+ * Otherwise a redirect to the error page is send.
+ */
 router.get("/app.php", function (request, response, next) {
-    const requestedAction = redirections.find(r => r.isRequested(request));
+    const foundRedirect = redirections.find(r => r.isRequested(request));
     
-    if (requestedAction && requestedAction.hasRedirect()) {
-        console.log('redirect ', request.originalUrl, 'to', requestedAction);
-        response.redirect(`${makeRedirectUrl(requestedAction, request)}`);
+    if (foundRedirect && foundRedirect.hasRedirect()) {
+        console.log('redirect ', request.originalUrl, 'to', foundRedirect);
+        response.redirect(`${makeRedirectUrl(foundRedirect, request)}`);
         return;
     }
 
