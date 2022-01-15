@@ -12,7 +12,7 @@ router.get("/", function (request, response, next) {
 
   new RequestDAO().getPendingRequests()
     .then((result) => {
-      if (result.rows.length === 0) {
+      if (result.length === 0) {
         return response.json([]);
       }
 
@@ -40,6 +40,7 @@ router.get("/", function (request, response, next) {
         });
     })
     .catch((err) => {
+      console.log('ERROR', request, err)
       return response.status(500).send("Database Error");
     });
 });
