@@ -65,7 +65,7 @@ router.get("/:id/thumb.jpg", function (request, response, next) {
   response.redirect('./thumb');
 });
 
-router.get(["/:id/AC3D", "/:id/ac3d", "/:id/ac"], function (request, response, next) {
+router.get("/:id/AC3D", function (request, response, next) {
   const id = Number(request.params.id || 0);
   if (isNaN(id)) {
     return response.status(500).send("Invalid Request");
@@ -97,6 +97,10 @@ router.get(["/:id/AC3D", "/:id/ac3d", "/:id/ac"], function (request, response, n
       console.log(err);
       return response.status(500).send("Database Error");
     });
+});
+
+router.get(["/:id/ac3d", "/:id/ac"], function (request, response, next) {
+  response.redirect('./AC3D');
 });
 
 

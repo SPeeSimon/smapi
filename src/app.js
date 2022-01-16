@@ -22,6 +22,9 @@ const allowCrossDomain = function (req, res, next) {
   }
 };
 
+express.static.mime.define({'application/octet-stream': ['ac']});
+express.static.mime.define({'application/x-gtar")': ['tgz']});
+
 app.use(logger(process.env.node_env === "development" ? "dev" : "combined"));
 app.use(require("helmet")());
 app.use(require("compression")());
