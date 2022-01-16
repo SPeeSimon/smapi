@@ -36,7 +36,7 @@ router.get("/:id/tgz", function (request, response, next) {
     });
 });
 
-function getThumb(request, response, next) {
+router.get("/:id/thumb", function (request, response, next) {
   var id = Number(request.params.id || 0);
   if (isNaN(id)) {
     return response.status(500).send("Invalid Request");
@@ -49,21 +49,21 @@ function getThumb(request, response, next) {
         return response.status(404).send("model not found");
       }
 
-      var buf = Buffer.from(result.thumbfile, "base64"); // thumbnail?
       response.writeHead(200, {
         "Content-Type": "image/jpeg",
         "Last-Modified": result.modified,
       });
-      response.end(buf);
+      response.end(Buffer.from(result.thumbfile, "base64"));
     })
     .catch((err) => {
       console.log(err);
       response.status(500).send("Database Error");
     });
-}
+});
 
-router.get("/:id/thumb", getThumb);
-router.get("/:id/thumb.jpg", getThumb);
+router.get("/:id/thumb.jpg", function (request, response, next) {
+  response.redirect('./thumb');
+});
 
 router.get(["/:id/AC3D", "/:id/ac3d", "/:id/ac"], function (request, response, next) {
   const id = Number(request.params.id || 0);
