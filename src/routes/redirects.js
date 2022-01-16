@@ -47,7 +47,7 @@ const redirections = [
     // new Redirector('Models', 'modelViewer', ''), // `${process.env.SCENERY_URL}/#/model/:id`
     new Redirector('Models', 'thumbnail', `${process.env.SCENERY_URL}/scenemodels/model/:id/thumb`, ['id']),
     // new Redirector('Models', 'contentFilesInfos', ''),
-    // new Redirector('Models', 'getAC3D', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/ac3d` application/octet-stream
+    new Redirector('Models', 'getAC3D', `${process.env.SCENERY_URL}/scenemodels/model/:id/AC3D`, ['id']),
     new Redirector('Models', 'getPackage', `${process.env.SCENERY_URL}/scenemodels/model/:id/tgz`, ['id']),
     // new Redirector('Models', 'getTexture', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/texture` // image/png
     new Redirector('Models', 'getFile', `${process.env.SCENERY_URL}/scenemodels/model/:id/model-content/:name`, ['id', 'name']), //  https://scenery.flightgear.org/app.php?c=Models&a=getFile&id=5312&name=htbocag1.png

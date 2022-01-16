@@ -65,6 +65,40 @@ function getThumb(request, response, next) {
 router.get("/:id/thumb", getThumb);
 router.get("/:id/thumb.jpg", getThumb);
 
+router.get(["/:id/AC3D", "/:id/ac3d", "/:id/ac"], function (request, response, next) {
+  const id = Number(request.params.id || 0);
+  if (isNaN(id)) {
+    return response.status(500).send("Invalid Request");
+  }
+
+  new ModelDAO()
+    .getModelFiles(id)
+    .then((result) => {
+      if (!result) {
+        return response.status(404).send("model not found");
+      }
+
+      new MultiStream(Buffer.from(result.modelfile, "base64"))
+            .on("error", (e) => console.log("error reading stream", e))
+            .pipe(tar.list()) // read archive
+              .on('entry', entry => {
+                if (entry.path.endsWith('.ac')) {
+                  response.redirect(`./model-content/${entry.path}`);
+                }
+              })
+              .on('error', e => console.log('Error reading archive from model', id, e))
+              .on('end', () => {
+                if (!(response.statusCode > 300 && response.statusCode < 400)) {
+                  return response.status(404).send(`AC3D file not found for model ${id}`);
+                }
+              });
+    })
+    .catch((err) => {
+      console.log(err);
+      return response.status(500).send("Database Error");
+    });
+});
+
 
 router.get("/:id/model-content/:name", function (request, response, next) {
   var id = Number(request.params.id || 0);
