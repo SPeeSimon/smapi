@@ -3,11 +3,11 @@ var router = express.Router();
 
 
 class Redirector{
-    constructor(controller, action, newLocation, hasId=false) {
+    constructor(controller, action, newLocation, urlParams) {
         this.controller = controller;
         this.action = action;
         this.newLocation = newLocation;
-        this.hasId = hasId;
+        this.urlParams = urlParams;
     }
 
     isRequested(request) {
@@ -33,7 +33,7 @@ const redirections = [
     // new Redirector('AddObjects', 'check', ''),
     // new Redirector('AddObjects', 'confirmMass', ''),
     // new Redirector('AddObjectsValidator', 'viewRequest', ''),
-    new Redirector('Authors', 'view', `${process.env.SCENERY_URL}/#/author/:id`, true),
+    new Redirector('Authors', 'view', `${process.env.SCENERY_URL}/#/author/:id`, ['id']),
     new Redirector('Authors', 'browse', `${process.env.SCENERY_URL}/#/authors/`),
     // new Redirector('DeleteObjects', 'findform', ''),
     // new Redirector('DeleteObjects', 'findObjWithPos', ''),
@@ -43,19 +43,20 @@ const redirections = [
     new Redirector('Index', 'index', `${process.env.SCENERY_URL}/`),
     new Redirector('Models', 'browse', `${process.env.SCENERY_URL}/#/models/`),
     new Redirector('Models', 'browseRecent', `${process.env.SCENERY_URL}/#/models/`),
-    new Redirector('Models', 'view', `${process.env.SCENERY_URL}/#/model/:id`, true),
+    new Redirector('Models', 'view', `${process.env.SCENERY_URL}/#/model/:id`, ['id']),
     // new Redirector('Models', 'modelViewer', ''), // `${process.env.SCENERY_URL}/#/model/:id`
-    new Redirector('Models', 'thumbnail', `${process.env.SCENERY_URL}/scenemodels/model/:id/thumb`, true),
+    new Redirector('Models', 'thumbnail', `${process.env.SCENERY_URL}/scenemodels/model/:id/thumb`, ['id']),
     // new Redirector('Models', 'contentFilesInfos', ''),
     // new Redirector('Models', 'getAC3D', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/ac3d` application/octet-stream
-    new Redirector('Models', 'getPackage', `${process.env.SCENERY_URL}/scenemodels/model/:id/tgz`, true),
+    new Redirector('Models', 'getPackage', `${process.env.SCENERY_URL}/scenemodels/model/:id/tgz`, ['id']),
     // new Redirector('Models', 'getTexture', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/texture` // image/png
-    // new Redirector('Models', 'getFile', ''), // `${process.env.SCENERY_URL}/scenemodels/model/:id/content-file/:name` https://scenery.flightgear.org/app.php?c=Models&a=getFile&id=5312&name=htbocag1.png
+    new Redirector('Models', 'getFile', `${process.env.SCENERY_URL}/scenemodels/model/:id/model-content/:name`, ['id', 'name']), //  https://scenery.flightgear.org/app.php?c=Models&a=getFile&id=5312&name=htbocag1.png
     new Redirector('News', 'display', `${process.env.SCENERY_URL}/#/news/`),
-    new Redirector('Objects', 'view', `${process.env.SCENERY_URL}/#/object/:id`, true),
+    new Redirector('Objects', 'view', `${process.env.SCENERY_URL}/#/object/:id`, ['id']),
     new Redirector('Objects', 'search', `${process.env.SCENERY_URL}/#/objects/`),
     // new Redirector('ObjectValidator', 'viewRequest', ''),
     new Redirector('Plain', 'statistics', `${process.env.SCENERY_URL}/#/stats`),
+      // https://scenery.flightgear.org/app.php?c=Models&a=getFile&id=5312&name=htbocag1.png
     // new Redirector('Request', 'getGroupModelsMDXML', ''),
     // new Redirector('Request', 'getModelInfoXML', ''),
     // new Redirector('Request', 'getCountryCodeAtXML', ''),
@@ -85,16 +86,16 @@ const redirections = [
 ];
 
 
-function queryValuesForRedirect(request, hasId) {
-    const excludeParams = hasId ? ['a', 'c', 'id'] : ['a', 'c'];
+function queryValuesForRedirect(request, urlParams) {
+    const excludeParams = ['a', 'c'].concat(urlParams);
     return Object.entries(request.query)
             .filter(q => !excludeParams.includes(q[0]));
 }
 
 
 function makeRedirectUrl(requestedAction, request){
-    const newLocation = requestedAction.newLocation.replace(':id', request.query.id);
-    const additionalQueryParams = queryValuesForRedirect(request, requestedAction.hasId);
+    const newLocation = (requestedAction.urlParams || []).reduce((val, param) => val.replace(`:${param}`, request.query[param]), requestedAction.newLocation);
+    const additionalQueryParams = queryValuesForRedirect(request, requestedAction.urlParams);
 
     if (additionalQueryParams.length == 0) {
         return newLocation;

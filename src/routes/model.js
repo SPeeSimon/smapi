@@ -6,6 +6,7 @@ const { authenticatedRequestValidation } = require("./auth/AuthorizationToken");
 const checkBodyAndQuery = buildCheckFunction(["body", "query"]);
 const { ModelDAO } = require("../dao/ModelDAO");
 const { ObjectDAO } = require("../dao/ObjectDAO");
+const { SingleFileTransmitter } = require('../utils/FileUtils');
 
 var router = express.Router();
 
@@ -63,6 +64,35 @@ function getThumb(request, response, next) {
 
 router.get("/:id/thumb", getThumb);
 router.get("/:id/thumb.jpg", getThumb);
+
+
+router.get("/:id/model-content/:name", function (request, response, next) {
+  var id = Number(request.params.id || 0);
+  if (isNaN(id) || !request.params.name) {
+    return response.status(500).send("Invalid Request");
+  }
+
+  new ModelDAO()
+    .getModelFiles(id)
+    .then((result) => {
+      if (!result) {
+        return response.status(404).send("model not found");
+      }
+
+      const fileTransmitter = new SingleFileTransmitter(request.params.name); // send requested file from archive
+
+      new MultiStream(Buffer.from(result.modelfile, "base64")) // stream archive content
+              .on("error", (e) => console.log("error reading stream", e)) // if error in streaming, log
+              .pipe(new tar.Parse()) // treat as archive
+              .on('entry', entry => fileTransmitter.processArchiveEntry(entry, response, result)) // handle archive entries
+              .on('end', () => fileTransmitter.handleClosing(response)); // close stream of notify not found
+    })
+    .catch((err) => {
+      console.log(err);
+      return response.status(500).send("Database Error");
+    });
+});
+
 
 router.get("/:id/positions", function (request, response, next) {
   var id = Number(request.params.id || 0);
@@ -139,22 +169,24 @@ router.get("/:id", function (request, response, next) {
         return response.json(ret);
       }
 
-      var streambuf = new MultiStream(Buffer.from(row.modelFiles, "base64"));
+      var streambuf = new MultiStream(Buffer.from(row.modelFiles, "base64")); // stream content
       streambuf.on("end", (a) => {
-        response.json(ret);
+        response.json(ret); // on end of content, send result
       });
 
-      streambuf.on("error", (e) => console.log("error reading stream", e));
+      streambuf.on("error", (e) => console.log("error reading stream", e)); // if error in streaming, log
 
       streambuf.pipe(
-        tar.t({
+        // send content to tar.t (list the content of an archive)
+        tar.list({
           onentry: (entry) => {
+            // on tar content entry, save basic file details
             ret.content.push({
               filename: entry.header.path,
               filesize: entry.header.size,
             });
           },
-          onerror: (er) => console.log("tar error", er),
+          onerror: (er) => console.log("tar error", er), // error in tar
         })
       );
     })
