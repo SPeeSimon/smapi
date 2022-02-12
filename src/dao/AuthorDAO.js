@@ -31,10 +31,6 @@ class AuthorDAO {
         });        
     }
 
-    // updateAuthor(Author author) {
-    //     //TODO
-    // }
-    
     getAuthor(authorId) {
         return Query({
           name: "AuthorById",
