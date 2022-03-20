@@ -2,90 +2,21 @@ import { Controller, Get, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { AuthGuard } from "@nestjs/passport";
 import { ApiTags, ApiOperation, ApiOkResponse, ApiUnauthorizedResponse } from "@nestjs/swagger";
 import { Request, Response } from 'express';
-import { AUTHENTICATION_PROPERTY, JWT_CONSTANTS } from './auth.module';
 import { AuthService } from './auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { AuthenticationPayload } from './dto/token-payload.dto';
-import { User } from './entities/user.entity';
 
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-    constructor(private readonly authService: AuthService, private jwtService: JwtService) {}
-
-    @Get('facebook')
-    @UseGuards(AuthGuard('facebook'))
-    @ApiOperation({ summary: 'Login using Facebook authentication' })
-    public async facebookSignIn() {}
-    
-    @Get('facebook/callback')
-    @UseGuards(AuthGuard('facebook'))
-    @ApiOperation({ summary: 'Retrieve the JWT token after logging in using Facebook' })
-    public async facebookCallBack(@Req() req, @Res({ passthrough: true }) response) {
-        const accessToken = this.returnJwtToken(req);
-        response.set({ 'Authorization': `Bearer ${accessToken}`});
-        return accessToken;
-    }
-
-    @Get('github')
-    @UseGuards(AuthGuard('github'))
-    @ApiOperation({ summary: 'Login using Github authentication' })
-    public async githubSignIn() {}
-
-    @Get('github/callback')
-    @UseGuards(AuthGuard('github'))
-    @ApiOperation({ summary: 'Retrieve the JWT token after logging in using Github' })
-    public async githubCallBack(@Req() req, @Res({ passthrough: true }) response) {
-        const accessToken = this.returnJwtToken(req);
-        response.set({ 'Authorization': `Bearer ${accessToken.access_token}`});
-        return accessToken;
-    }
-    
-    @Get('google')
-    @UseGuards(AuthGuard('google'))
-    @ApiOperation({ summary: 'Login using Google authentication' })
-    public async googleSignIn() {}    
-    
-    @Get('google/callback')
-    @UseGuards(AuthGuard('google'))
-    @ApiOperation({ summary: 'Retrieve the JWT token after logging in using Google' })
-    public async googleCallback(@Req() req, @Res({ passthrough: true }) response) {
-        const accessToken = this.returnJwtToken(req);
-        response.set({ 'Authorization': `Bearer ${accessToken}`});
-        return accessToken;
-    }
+    constructor(private readonly authService: AuthService) {}
 
     @Post('local')
     @UseGuards(AuthGuard('local'))
     public async localSignIn(@Req() req, @Res({ passthrough: true }) response) {
-        const accessToken = this.returnJwtToken(req);
+        const accessToken = this.authService.returnJwtToken(req);
         response.set({ 'Authorization': `Bearer ${accessToken}`});
         return accessToken;
     }
-    
-    @Get('twitter')
-    @UseGuards(AuthGuard('twitter'))
-    @ApiOperation({ summary: 'Login using Twitter authentication' })
-    public async twitterSignIn() {}
-    
-    @Get('twitter/callback')
-    @UseGuards(AuthGuard('twitter'))
-    @ApiOperation({ summary: 'Retrieve the JWT token after logging in using Twitter' })
-    public async twitterCallBack(@Req() req, @Res({ passthrough: true }) response) {
-        const accessToken = this.returnJwtToken(req);
-        response.set({ 'Authorization': `Bearer ${accessToken}`});
-        return accessToken;
-    }
-    
-    private returnJwtToken(req: any) {
-        const user = req[AUTHENTICATION_PROPERTY] as User;
-        const authenticationPayload = new AuthenticationPayload(`Flightgear API`, Math.random(), user, new Date());
-        return {
-            access_token: this.jwtService.sign(authenticationPayload.getAsPlain()),
-            token_type: 'Bearer',
-            expires_in: JWT_CONSTANTS.ttl,
-        };
-    }
+   
 
     @Get('logout')
     public logout(@Req() request: Request, @Res() response: Response) {

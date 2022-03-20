@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
 import { Author } from 'src/authors/entities/author.entity';
 import { getConnection } from 'typeorm';
+import { AUTHENTICATION_PROPERTY, JWT_CONSTANTS } from './auth.module';
+import { NoAuthenticationFoundError } from './dto/NoAuthenticationFoundError';
+import { AuthenticationPayload } from './dto/token-payload.dto';
 import { User } from './entities/user.entity';
 import { UserAuthenticationMethod } from './entities/UserAuthenticationMethod.entity';
 
@@ -38,7 +42,18 @@ function convertRawToSingleUserMultipleAuth(result: unknown[]) {
 
 @Injectable()
 export class AuthService {
-    constructor() {}
+    constructor(private jwtService: JwtService) {}
+
+    returnJwtToken(request: Request) {
+        const user = request[AUTHENTICATION_PROPERTY] as User;
+        const authenticationPayload = new AuthenticationPayload(`Flightgear API`, Math.random(), user, new Date());
+        return {
+            access_token: this.jwtService.sign(authenticationPayload.getAsPlain()),
+            token_type: 'Bearer',
+            expires_in: JWT_CONSTANTS.ttl,
+        };
+    }
+
 
     validateUser(authorityId: number, email: string) {
         return getConnection()
@@ -98,24 +113,5 @@ export class AuthService {
             .innerJoinAndSelect(UserAuthenticationMethod, 'extuser', 'author.au_id = extuser.eu_author_id')
             .getRawMany()
             .then((result: unknown[]) => result.map(record => convertRawToSingleUserSingleAuth(record)));
-    }
-}
-
-
-
-export class NoAuthenticationFoundError extends Error {
-    name: string;
-
-    constructor(public authority: string|number, public externalId: string|number, ...params) {
-        super(...params);
-
-        // Maintains proper stack trace for where our error was thrown (only available on V8)
-        if (Error.captureStackTrace) {
-            Error.captureStackTrace(this, NoAuthenticationFoundError);
-        }
-
-        this.name = 'NoAuthenticationFoundError';
-        this.authority = authority;
-        this.externalId = externalId;
     }
 }

@@ -30,9 +30,9 @@ import { UserAuthenticationMethod } from './auth/entities/UserAuthenticationMeth
 
 @Module({
     imports: [
+        ConfigModule.forRoot({ isGlobal: true }),
         ModelsModule,
         AuthorsModule,
-        ConfigModule.forRoot({ isGlobal: true }),
         // ConfigModule.load(path.resolve(__dirname, 'config', '**', '!(*.d).{ts,js}')),
         TypeOrmModule.forRoot({
             type: 'postgres',

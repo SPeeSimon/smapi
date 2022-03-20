@@ -18,7 +18,7 @@ export class NavdbController {
     @ApiParam({
         name: 'icao',
         description:
-            'Airport code, as from the International Civil Aviation Organization (https://en.wikipedia.org/wiki/International_Civil_Aviation_Organization#Airport_codes)',
+            'Airport code, as from the [International Civil Aviation Organization](https://en.wikipedia.org/wiki/International_Civil_Aviation_Organization#Airport_codes).',
     })
     @Get('/airport/:icao')
     findAirportByCode(@Param('icao') icao: string): Promise<FgAirportRunways> {

@@ -111,7 +111,7 @@ export class TsController {
     }
 
 
-    @ApiOperation({ description: "Get a list of available TerraSync mirrors and their status. See https://wiki.flightgear.org/TerraSync" })
+    @ApiOperation({ description: "Get a list of available [TerraSync](https://wiki.flightgear.org/TerraSync) mirrors and their status." })
     @ApiOkResponse({ description: 'Successfully retrieved the status of the available TerraSync mirrors' })
     @ApiInternalServerErrorResponse({ description: 'Error during retrieval of the available TerraSync mirrors or getting their status' })
     @Header('Cache-Control', 'public, max-age=' + HRS_8_IN_SECONDS)

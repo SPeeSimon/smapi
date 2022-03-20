@@ -22,13 +22,13 @@ function normalizePort(val) {
 function setupSwaggerDocumentation(app: INestApplication) {
     const config = new DocumentBuilder()
         .setTitle('FlightGear scenery API')
-        .setDescription('API for FlightGear scenery database')
+        .setDescription('API for [FlightGear](https://flightgear.org/) scenery database.')
         .setExternalDoc('FlightGear', 'https://flightgear.org/')
         .setExternalDoc('FlightGear wiki', 'https://wiki.flightgear.org/')
         .setVersion('2.0')
         .addTag('scenery')
         .addTag('models')
-        .addBearerAuth({ type: 'http', scheme: 'Bearer', bearerFormat: 'jwt',
+        .addBearerAuth({ type: 'http',
             description: 'Use the token retrieved from the callback url after logging in through one of the supported authentication providers. Note your account has to be known in order to succesfully login.' })
         .build();
     const document = SwaggerModule.createDocument(app, config);

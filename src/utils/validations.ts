@@ -13,3 +13,7 @@ export function isString(s): s is string {
 export function toNumber(x) {
   return isNumber(x) ? Number(x) : 0;
 }
+
+export function isUrl(url: string) {
+  return url !== undefined && url.startsWith('http') && url.indexOf('://') > 0;
+}
