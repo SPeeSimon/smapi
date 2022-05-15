@@ -39,7 +39,7 @@ function getRequestor(url: string) {
     else return http;
 }
 
-@ApiTags('terrasync')
+@ApiTags('Terrasync')
 @Controller('ts')
 export class TsController {
     async getStatus1(url: string): Promise<UrlData> {
@@ -48,7 +48,7 @@ export class TsController {
                 .get(`${url}/.dirindex`, function (response) {
                     if (response.statusCode !== 200) {
                         response.resume();
-                        Logger.log(`Error processing ${url}: ${response.statusCode}, ${response.statusMessage}`, TS);
+                        Logger.error(`Error processing ${url}: ${response.statusCode}, ${response.statusMessage}`, TS);
                         return reject({ url: url, error: response.statusMessage || `Remote error ${response.statusCode}` });
                     }
 
@@ -58,7 +58,7 @@ export class TsController {
                     response.on('end', () => accept({ url: url, data: data }));
                 })
                 .on('error', function (err) {
-                    Logger.log(`Error processing ${url}: ${err}`, TS);
+                    Logger.error(`Error processing ${url}: ${err}`, TS);
                     return reject({ url: url, error: err });
                 });
         });
@@ -66,7 +66,7 @@ export class TsController {
 
     async getAdresses() {
         return dns.promises.resolveNaptr(TERRASYNC_DNS).catch((err) => {
-            Logger.log(`dns resolved in error: ${err}`, TS);
+            Logger.log(`DNS resolved in error: ${err}`, TS);
             throw new DnsQueryException();
         });
     }
@@ -118,25 +118,30 @@ export class TsController {
     @Get('/status/')
     async getStatus() {
         const addresses = (await this.getAdresses()) || [];
-        Logger.log(`dns resolved in addresses:', ${addresses?.length}`, TS);
+        Logger.log(`DNS resolved in addresses:', ${addresses?.length}`, TS);
 
         const entries = addresses
             .map((address, index) => {
-                return { address: address, url: this.getAddressFromNaptrItem(address), index: index } as FGDnsRequestData;
+                const urlMapping = { address: address, url: this.getAddressFromNaptrItem(address), index: index } as FGDnsRequestData;
+                Logger.debug(`Got an address/url mapping for: ${urlMapping.url}`, TS);
+                return urlMapping;
             })
             .map((data) => {
                 return this.getStatus1(data.url).then((u) => {
+                    Logger.debug(`Parsing response of: ${data.url}`, TS);
                     return {
                         url: data.url,
                         dirindex: this.parseDirindex(u.data as string),
                         dns: data.address,
                     };
-                });
-            });
+                }).catch((err) => Logger.error(`Error retrieving remote information from "${err.url}" = ${err.error}`, TS));
+            })
+            .filter(data => data != null)
 
+    
         const terrasyncAddressValues = await Promise.all(entries).catch((err) =>
-            Logger.log(`Error retrieving remote information: ${err}`, TS),
-        );
+            Logger.error(`Error retrieving ALL remote information: ${err}`, TS),
+        ).then(r => (r as unknown[]).filter(c => c != null));
 
         return {
             title: 'Terrasync Status',
