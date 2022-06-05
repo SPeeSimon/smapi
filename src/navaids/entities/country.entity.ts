@@ -11,7 +11,7 @@ export class Country {
     name: string;
 
     @Column({ name: 'co_three', length: 3 })
-    three: string;
+    codeThree: string;
 }
 
 /*

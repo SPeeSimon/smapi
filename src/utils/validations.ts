@@ -1,5 +1,5 @@
 export function numberOrDefault(x: any, d: number) {
-  return isNaN(Number(x)) ? d : x as number;
+  return isNaN(Number(x)) ? d : Number(x);
 }
 
 export function isNumber(x): x is number {

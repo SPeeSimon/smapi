@@ -10,7 +10,6 @@ import { ModelsModule } from './models/models.module';
 import { NewsModule } from './news/news.module';
 import { ObjectsModule } from './objects/objects.module';
 import { NavaidsModule } from './navaids/navaids.module';
-import { RequestsModule } from './requests/requests.module';
 import { SignsModule } from './signs/signs.module';
 import { StatisticsModule } from './statistics/statistics.module';
 import { News } from './news/entities/news.entity';
@@ -23,7 +22,7 @@ import { FGSObject } from './objects/entities/object.entity';
 import { SubmissionsModule } from './submissions/submissions.module';
 import { NavdbModule } from './navdb/navdb.module';
 import { RssModule } from './rss/rss.module';
-import { PositionRequest } from './requests/entities/request.entity';
+import { PositionRequest } from './submissions/entities/request.entity';
 import { Country } from './navaids/entities/country.entity';
 import { AuthModule } from './auth/auth.module';
 import { UserAuthenticationMethod } from './auth/entities/UserAuthenticationMethod.entity';
@@ -46,7 +45,6 @@ import { UserAuthenticationMethod } from './auth/entities/UserAuthenticationMeth
         NewsModule,
         ObjectsModule,
         NavaidsModule,
-        RequestsModule,
         SignsModule,
         StatisticsModule,
         ModelgroupsModule,
