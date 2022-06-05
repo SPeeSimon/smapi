@@ -1,7 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Position } from "geojson";
+import { Boundary } from 'src/shared/Boundary.dto';
 
-export class SearchFGSObjectDto {
+export class SearchFGSObjectDto extends Boundary {
     @ApiProperty({ description: 'Search for description of the object', required: false })
     description?: string;
     @ApiProperty({ description: 'Search for the date of modification date of the object (exact)', required: false })
@@ -16,14 +17,14 @@ export class SearchFGSObjectDto {
     lon?: number;
     @ApiProperty({ description: 'Search for objects at the given position', example: '1.23,4.56', required: false })
     point?: Position;
-    @ApiProperty({ description: 'Search for objects within the given boundary (north). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
-    n?: number;
-    @ApiProperty({ description: 'Search for objects within the given boundary (east). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
-    e?: number;
-    @ApiProperty({ description: 'Search for objects within the given boundary (south). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
-    s?: number;
-    @ApiProperty({ description: 'Search for objects within the given boundary (west). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
-    w?: number;
+    // @ApiProperty({ description: 'Search for objects within the given boundary (north). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
+    // n?: number;
+    // @ApiProperty({ description: 'Search for objects within the given boundary (east). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
+    // e?: number;
+    // @ApiProperty({ description: 'Search for objects within the given boundary (south). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
+    // s?: number;
+    // @ApiProperty({ description: 'Search for objects within the given boundary (west). For searching for a boundary all 4 corners (north, east, south and west) must be entered.', required: false })
+    // w?: number;
     @ApiProperty({ description: 'Search for objects with the given elevation', required: false })
     elevation?: number;
     @ApiProperty({ description: 'Search for objects with the given elevation offset', required: false })

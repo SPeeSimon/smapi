@@ -11,12 +11,11 @@ import {
     Redirect,
     Res,
     StreamableFile,
-    UseFilters,
 } from '@nestjs/common';
 import { ModelsService } from './models.service';
 import { CreateModelDto } from './dto/create-model.dto';
 import { UpdateModelDto } from './dto/update-model.dto';
-import { ApiParam, ApiOkResponse, ApiMovedPermanentlyResponse, ApiNotFoundResponse, ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiParam, ApiOkResponse, ApiMovedPermanentlyResponse, ApiNotFoundResponse, ApiQuery, ApiTags, ApiResponse } from '@nestjs/swagger';
 import { SearchModelDto } from './dto/search-model.dto';
 import { Response } from 'express';
 import { SingleFileTransmitter } from 'src/utils/FileUtils';
@@ -26,6 +25,7 @@ import { ObjectsService } from 'src/objects/objects.service';
 import { Paging } from 'src/shared/Paging.dto';
 import { RequireTokenAuthentication } from 'src/auth/auth.decorator';
 import { Model } from './entities/model.entity';
+import { toFeatureCollection } from 'src/shared/GeoJsonUtils';
 
 @ApiTags('Models')
 @Controller('/scenemodels/models')
@@ -51,13 +51,13 @@ export class ModelsController {
     findByModelGroup(@Param('mg') modelGroup: string|number, @Query('limit') limit: number, @Query('offset') offset: number) {
         return this.modelsService.searchModel({ modelgroup: modelGroup, limit: limit, offset: offset });
     }
-
+    
     @Get('/search')
     @ApiQuery({ name: 'searchCriteria', required: false, type: SearchModelDto })
     findModel(@Query() filters: SearchModelDto) {
         return this.modelsService.searchModel(filters);
     }
-
+    
     @Get('/search/byauthor/:id')
     @ApiParam({ name: 'id', required: true, description: 'Id of the Author' })
     @ApiQuery({ name: 'limit', required: false })
@@ -66,6 +66,22 @@ export class ModelsController {
         return this.modelsService.searchModel({ authorId: id, limit: limit, offset: offset });
     }
 
+    @ApiQuery({ name: 'e', required: true, description: 'coordinate of position east' })
+    @ApiQuery({ name: 'w', required: true, description: 'coordinate of position west' })
+    @ApiQuery({ name: 'n', required: true, description: 'coordinate of position north' })
+    @ApiQuery({ name: 's', required: true, description: 'coordinate of position south' })
+    @ApiResponse({ status: 200, isArray: false })
+    @Get(['/', '/within'])
+    findWithinBoundary(
+        @Query('e') east: number,
+        @Query('w') west: number,
+        @Query('n') north: number,
+        @Query('s') south: number,
+    ) { //: Promise<FeatureCollection<Point, Object>> {
+        return this.modelsService.findWithinBoundary(east, west, north, south).then(toFeatureCollection);
+    }
+
+    
     @Get(':id')
     @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     @ApiOkResponse({ type: Model, description: 'Returns the Model and entries with the given id' })
@@ -184,10 +200,6 @@ export class ModelsController {
     @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
     async getModelPositions(@Param('id') id: string, @Query('limit') limit, @Query('offset') offset) {
         const positions = await this.objectsService.getObjectsByModel(+id, new Paging(offset, limit));
-        return {
-            type: 'FeatureCollection',
-            features: positions,
-            model: id,
-        };
+        return Object.assign({}, toFeatureCollection(positions), {model: id});
     }
 }

@@ -23,10 +23,10 @@ export class FGSObject {
     geometry: Point;
 
     @Column({ name: 'ob_gndelev', default: -9999 })
-    gndelev: number;
+    gndelev: number; // groundElevation
 
     @Column({ name: 'ob_elevoffset' })
-    elevoffset: number;
+    elevoffset: number; // elevationOffset
 
     @Column({ name: 'ob_peakelev' })
     peakelev: number;

@@ -1,154 +1,217 @@
 import { isNumber, isString, numberOrDefault, toNumber } from 'src/utils/validations';
-import { SearchModelDto } from "./dto/search-model.dto";
-import { Model } from "./entities/model.entity";
+import { SearchModelDto } from './dto/search-model.dto';
+import { Model } from './entities/model.entity';
 import { Between, Brackets, In, IsNull, Not, SelectQueryBuilder, Like, MoreThanOrEqual, LessThan } from 'typeorm';
 import { FGSObject } from 'src/objects/entities/object.entity';
 import { Author } from 'src/authors/entities/author.entity';
+const util = require('util');
 
 const DEFAULT_LIMIT = 20;
 const OFFSET_START = 0;
 const DATE_REGEXP = /[0-9]{4}-[0-1][0-9]-[0-3][0-9]/; // regexp for date formatted: yyyy-mm-dd
 
-
 export class ModelSearchQuery {
+    constructor(private searchCriteria: Partial<SearchModelDto>, private queryBuilder: SelectQueryBuilder<Model>) {}
 
-  constructor(private searchCriteria: Partial<SearchModelDto>, private queryBuilder: SelectQueryBuilder<Model>) {}
+    forFile() {
+        if (isString(this.searchCriteria.file)) {
+            this.queryBuilder.andWhere({ path: Like(`%${this.searchCriteria.file}%`) });
+        }
+    }
 
-  forFile() {
-    if (isString(this.searchCriteria.file)) {
-      this.queryBuilder.andWhere({ path: Like(`%${this.searchCriteria.file}%`) });
+    forName() {
+        if (isString(this.searchCriteria.name)) {
+            this.queryBuilder.andWhere({ name: Like(`%${this.searchCriteria.name}%`) });
+        }
     }
-  }
 
-  forName() {
-    if (isString(this.searchCriteria.name)) {
-      this.queryBuilder.andWhere({ name: Like(`%${this.searchCriteria.name}%`) });
+    forNotes() {
+        if (isString(this.searchCriteria.description)) {
+            this.queryBuilder.andWhere({ notes: Like(`%${this.searchCriteria.description}%`) });
+        }
     }
-  }
 
-  forNotes() {
-    if (isString(this.searchCriteria.description)) {
-      this.queryBuilder.andWhere({ notes: Like(`%${this.searchCriteria.description}%`) });
+    forCountry() {
+        if (isString(this.searchCriteria.country)) {
+            this.queryBuilder
+                .andWhere(
+                    (qb) =>
+                        'mo_id in ' +
+                        qb
+                            .subQuery()
+                            .select('obj.ob_model')
+                            .addFrom(FGSObject, 'obj')
+                            .where('obj.ob_country = :country')
+                            .getQuery(),
+                )
+                .setParameter('country', this.searchCriteria.country);
+        }
     }
-  }
 
-  forCountry() {
-    if (isString(this.searchCriteria.country)) {
-        this.queryBuilder.andWhere(qb => 
-          'mo_id in ' + qb.subQuery().select('obj.ob_model').addFrom(FGSObject, 'obj').where('obj.ob_country = :country').getQuery()
-      ).setParameter('country', this.searchCriteria.country);
+    forModifedOn() {
+        if (this.searchCriteria.modifiedOn !== undefined /*&& DATE_REGEXP.test(this.searchCriteria.modifiedOn)*/) {
+            this.queryBuilder.andWhere({ modified: this.searchCriteria.modifiedOn });
+            // this.withFilter("MO", `date_trunc('DAY', mo_modified) = $${this.currentParamIndex()}`, this.searchCriteria.modifiedOn);
+        }
     }
-  }
 
-  forModifedOn() {
-    if (this.searchCriteria.modifiedOn !== undefined /*&& DATE_REGEXP.test(this.searchCriteria.modifiedOn)*/) {
-      this.queryBuilder.andWhere({ modified: this.searchCriteria.modifiedOn });
-      // this.withFilter("MO", `date_trunc('DAY', mo_modified) = $${this.currentParamIndex()}`, this.searchCriteria.modifiedOn);
+    forModifiedSince() {
+        if (this.searchCriteria.modifiedSince !== undefined /*&& DATE_REGEXP.test(this.searchCriteria.modified)*/) {
+            this.queryBuilder.andWhere({ modified: MoreThanOrEqual(this.searchCriteria.modifiedOn) });
+        }
     }
-  }
 
-  forModifiedSince() {
-    if (this.searchCriteria.modifiedSince !== undefined /*&& DATE_REGEXP.test(this.searchCriteria.modified)*/) {
-      this.queryBuilder.andWhere({ modified: MoreThanOrEqual(this.searchCriteria.modifiedOn) });
+    forModifiedBefore() {
+        if (this.searchCriteria.modifiedBefore !== undefined /*&& DATE_REGEXP.test(modified)*/) {
+            this.queryBuilder.andWhere({ modified: LessThan(this.searchCriteria.modifiedBefore) });
+        }
     }
-  }
 
-  forModifiedBefore() {
-    if (this.searchCriteria.modifiedBefore !== undefined /*&& DATE_REGEXP.test(modified)*/) {
-      this.queryBuilder.andWhere({ modified: LessThan(this.searchCriteria.modifiedBefore) });
+    forModelgroup() {
+        if (this.searchCriteria.modelgroup !== undefined && isNumber(this.searchCriteria.modelgroup)) {
+            this.queryBuilder.andWhere({ modelgroup: this.searchCriteria.modelgroup });
+        } else if (typeof this.searchCriteria.modelgroup === 'string') {
+            this.queryBuilder.andWhere({ modelgroup: { name: this.searchCriteria.modelgroup } });
+        }
     }
-  }
 
-  forModelgroup() {
-    if (this.searchCriteria.modelgroup !== undefined && isNumber(this.searchCriteria.modelgroup)) {
-      this.queryBuilder.andWhere({ modelgroup: this.searchCriteria.modelgroup });
+    forObjectId() {
+        if (this.searchCriteria.objectId !== undefined && isNumber(this.searchCriteria.objectId)) {
+            this.queryBuilder
+                .andWhere(
+                    (qb) =>
+                        'mo_id in ' +
+                        qb.subQuery().select('obj.ob_model').addFrom(FGSObject, 'obj').where('obj.ob_id = :objectid').getQuery(),
+                )
+                .setParameter('objectid', this.searchCriteria.objectId);
+        }
     }
-    else if (typeof this.searchCriteria.modelgroup === 'string') {
-      this.queryBuilder.andWhere({ modelgroup: {name: this.searchCriteria.modelgroup} });
-    }
-  }
 
-  forObjectId() {
-    if (this.searchCriteria.objectId !== undefined && isNumber(this.searchCriteria.objectId)) {
-      this.queryBuilder.andWhere(qb => 
-          'mo_id in ' + qb.subQuery().select('obj.ob_model').addFrom(FGSObject, 'obj').where('obj.ob_id = :objectid').getQuery()
-      ).setParameter('objectid', this.searchCriteria.objectId);
+    forAuthor() {
+        if (isString(this.searchCriteria.author)) {
+            this.queryBuilder
+                .andWhere(
+                    new Brackets((qb) => {
+                        qb.where(
+                            (qb2) =>
+                                'mo_author in ' +
+                                qb2
+                                    .subQuery()
+                                    .select('ma.au_id')
+                                    .addFrom(Author, 'ma')
+                                    .where('ma.au_name like :authorName')
+                                    .getQuery(),
+                        ).orWhere(
+                            (qb2) =>
+                                'mo_modified_by in ' +
+                                qb2
+                                    .subQuery()
+                                    .select('mm.au_id')
+                                    .addFrom(Author, 'mm')
+                                    .where('mm.au_name like :authorName')
+                                    .getQuery(),
+                        );
+                    }),
+                )
+                .setParameter('authorName', this.searchCriteria.author);
+        }
     }
-  }
 
-  forAuthor() {
-    if (isString(this.searchCriteria.author)) {
-      this.queryBuilder.andWhere(new Brackets(qb => {
-        qb.where(qb2 =>
-          'mo_author in ' + qb2.subQuery().select('ma.au_id').addFrom(Author, 'ma').where('ma.au_name like :authorName').getQuery()
-        )
-        .orWhere(qb2 =>
-          'mo_modified_by in ' + qb2.subQuery().select('mm.au_id').addFrom(Author, 'mm').where('mm.au_name like :authorName').getQuery()
-        )
-      })).setParameter('authorName', this.searchCriteria.author);
+    forAuthorId() {
+        if (isNumber(this.searchCriteria.authorId)) {
+            this.queryBuilder.andWhere(
+                new Brackets((qb) => {
+                    qb.where({ author: this.searchCriteria.authorId }).orWhere({ modified_by: this.searchCriteria.authorId });
+                }),
+            );
+        }
     }
-  }
 
-  forAuthorId() {
-    if (isNumber(this.searchCriteria.authorId)) {
-      this.queryBuilder.andWhere(new Brackets(qb => {
-        qb.where({ author: this.searchCriteria.authorId })
-          .orWhere({ modified_by: this.searchCriteria.authorId })
-      }))
+    forThumbnail() {
+        if (this.searchCriteria.thumbnail === undefined) {
+            // nothing
+        } else if (this.searchCriteria.thumbnail === true || (this.searchCriteria.thumbnail as unknown) === 'true') {
+            this.queryBuilder.andWhere('mo_thumbfile IS NOT NULL');
+        } else if (this.searchCriteria.thumbnail === false || (this.searchCriteria.thumbnail as unknown) === 'false') {
+            this.queryBuilder.andWhere({ thumbfile: IsNull() });
+        }
     }
-  }
 
-  forThumbnail() {
-    if (this.searchCriteria.thumbnail === undefined) {
-      // nothing
+    private addBoundary() {
+        const north = this.searchCriteria.n;
+        const east = this.searchCriteria.e;
+        const south = this.searchCriteria.s;
+        const west = this.searchCriteria.w;
+        if (isNumber(north) && isNumber(east) && isNumber(south) && isNumber(west)) {
+            this.queryBuilder
+                .andWhere(
+                    (qb) =>
+                        'mo_id in ' +
+                        qb
+                            .subQuery()
+                            .select('obj.ob_model')
+                            .addFrom(FGSObject, 'obj')
+                            .where('ST_Within(obj.wkb_geometry, ST_GeomFromText(:boundary, 4326))')
+                            .getQuery(),
+                )
+                .setParameter('boundary', 
+                     util.format(
+                        'POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))',
+                        Number(west),
+                        Number(south),
+                        Number(west),
+                        Number(north),
+                        Number(east),
+                        Number(north),
+                        Number(east),
+                        Number(south),
+                        Number(west),
+                        Number(south),
+                    ),
+                );
+        }
     }
-    else if (this.searchCriteria.thumbnail === true || (this.searchCriteria.thumbnail as unknown) === 'true') {
-      this.queryBuilder.andWhere('mo_thumbfile IS NOT NULL');
-    }
-    else if (this.searchCriteria.thumbnail === false || (this.searchCriteria.thumbnail as unknown) === 'false') {
-      this.queryBuilder.andWhere({thumbfile: IsNull()});
-    }
-  }
 
-  private withPaging() {
-    this.queryBuilder.limit(numberOrDefault(this.searchCriteria.limit, DEFAULT_LIMIT));
-    this.queryBuilder.offset(numberOrDefault(this.searchCriteria.offset, OFFSET_START));
-}
-
-  withOrder() {
-    if (this.searchCriteria.order !== undefined && isNumber(this.searchCriteria.order.column)) {
-      const order_cols = {
-        1: "mo_id",
-        2: "mo_name",
-        3: "mo_path",
-        4: "mo_notes",
-        5: "mo_modified",
-        6: "mo_shared",
-      };
-      const order_col = order_cols[toNumber(this.searchCriteria.order.column)] || 'mo_modified';
-      const order_dir = this.searchCriteria.order.dir === 'ASC' ? 'ASC' : 'DESC';
-      this.queryBuilder.orderBy(order_col, order_dir);
+    private withPaging() {
+        this.queryBuilder.limit(numberOrDefault(this.searchCriteria.limit, DEFAULT_LIMIT));
+        this.queryBuilder.offset(numberOrDefault(this.searchCriteria.offset, OFFSET_START));
     }
-  }
 
-  fillQuery() {
-    this.queryBuilder.leftJoinAndSelect('Model.modelgroup', 'modelgroup');
-    this.queryBuilder.leftJoinAndSelect('Model.modified_by', 'modified_by');
-    this.queryBuilder.leftJoinAndSelect('Model.author', 'author');
-    this.queryBuilder.where('1=1');
-    this.forFile();
-    this.forName();
-    this.forNotes();
-    this.forCountry();
-    this.forModifedOn();
-    this.forModifiedSince();
-    this.forModifiedBefore();
-    this.forModelgroup();
-    this.forObjectId();
-    this.forAuthor();
-    this.forAuthorId();
-    this.forThumbnail();
-    this.withPaging();
-    this.withOrder();
-  }
+    withOrder() {
+        if (this.searchCriteria.order !== undefined && isNumber(this.searchCriteria.order.column)) {
+            const order_cols = {
+                1: 'mo_id',
+                2: 'mo_name',
+                3: 'mo_path',
+                4: 'mo_notes',
+                5: 'mo_modified',
+                6: 'mo_shared',
+            };
+            const order_col = order_cols[toNumber(this.searchCriteria.order.column)] || 'mo_modified';
+            const order_dir = this.searchCriteria.order.dir === 'ASC' ? 'ASC' : 'DESC';
+            this.queryBuilder.orderBy(order_col, order_dir);
+        }
+    }
+
+    fillQuery() {
+        this.queryBuilder.leftJoinAndSelect('Model.modelgroup', 'modelgroup');
+        this.queryBuilder.leftJoinAndSelect('Model.modified_by', 'modified_by');
+        this.queryBuilder.leftJoinAndSelect('Model.author', 'author');
+        this.queryBuilder.where('1=1');
+        this.forFile();
+        this.forName();
+        this.forNotes();
+        this.forCountry();
+        this.addBoundary();
+        this.forModifedOn();
+        this.forModifiedSince();
+        this.forModifiedBefore();
+        this.forModelgroup();
+        this.forObjectId();
+        this.forAuthor();
+        this.forAuthorId();
+        this.forThumbnail();
+        this.withPaging();
+        this.withOrder();
+    }
 }
