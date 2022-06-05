@@ -24,14 +24,14 @@ const redirections = [
     // new Redirector('AddModel', 'form', ''),
     // new Redirector('AddModel', 'addRequest', ''),
     // new Redirector('AddModel', 'success', ''),
-    // new Redirector('AddModelValidator', 'viewRequest', ''),
+    // new Redirector('AddModelValidator', 'viewRequest', `${SCENERY_URL}/#/verify/objects/:sig`, ['sig']), // https://scenery.flightgear.org/app.php?c=AddModelValidator&a=viewRequest&sig=2a3f1397810f8a0d5c1ee7a
     // new Redirector('AddModelValidator', 'modelViewer', ''),
     // new Redirector('AddModelValidator', 'validateRequest', ''),
     // new Redirector('AddObjects', 'form', ''),
     // new Redirector('AddObjects', 'massiveform', ''),
     // new Redirector('AddObjects', 'check', ''),
     // new Redirector('AddObjects', 'confirmMass', ''),
-    // new Redirector('AddObjectsValidator', 'viewRequest', ''),
+    // new Redirector('AddObjectsValidator', 'viewRequest', `${SCENERY_URL}/#/verify/objects/:sig`, ['sig']), // http://localhost:8082/app.php?c=AddObjectsValidator&a=viewRequest&sig=800842d18b10f1ce7ca682f47fcb175c0cec82b306f8f6cdb20317d622ce1b0d
     new Redirector('Authors', 'view', `${SCENERY_URL}/#/author/:id`, ['id']),
     new Redirector('Authors', 'browse', `${SCENERY_URL}/#/authors/`),
     // new Redirector('DeleteObjects', 'findform', ''),
@@ -53,7 +53,7 @@ const redirections = [
     new Redirector('News', 'display', `${SCENERY_URL}/#/news/`),
     new Redirector('Objects', 'view', `${SCENERY_URL}/#/object/:id`, ['id']),
     new Redirector('Objects', 'search', `${SCENERY_URL}/#/objects/`),
-    // new Redirector('ObjectValidator', 'viewRequest', ''),
+    // new Redirector('ObjectValidator', 'viewRequest', `${SCENERY_URL}/#/verify/objects/:sig`, ['sig']), http://localhost:8082/app.php?c=ObjectValidator&a=viewRequest&sig=fb65be9a7bbfce6ba8c8fc6a97c0735e82f77f96b3115b381d94fdd01fb9f34c
     new Redirector('Plain', 'statistics', `${SCENERY_URL}/#/stats`),
     // new Redirector('Request', 'getGroupModelsMDXML', ''),
     // new Redirector('Request', 'getModelInfoXML', ''),
@@ -65,7 +65,7 @@ const redirections = [
     // new Redirector('UpdateModel', 'modelUpdateForm', ''), // https://scenery.flightgear.org/app.php?c=UpdateModel&a=modelUpdateForm&modelId=5312
     // new Redirector('UpdateModel', 'addRequest', ''),
     // new Redirector('UpdateModel', 'success', ''),
-    // new Redirector('UpdateModelValidator', 'viewRequest', ''),
+    // new Redirector('UpdateModelValidator', 'viewRequest', `${SCENERY_URL}/#/verify/objects/:sig`, ['sig']),
     // new Redirector('UpdateModelValidator', 'modelViewer', ''),
     // new Redirector('UpdateModelValidator', 'getOldModelTexture', ''),
     // new Redirector('UpdateModelValidator', 'getOldModelTextureTN', ''),
@@ -83,7 +83,7 @@ const redirections = [
     // new Redirector('Validator', 'getNewModelTextureTN', '')
 ];
 
-@ApiTags('fligthgear')
+@ApiTags('Fligthgear')
 @Controller()
 export class RedirectController {
     /**

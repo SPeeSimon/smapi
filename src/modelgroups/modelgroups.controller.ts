@@ -3,7 +3,7 @@ import { ApiTags, ApiOkResponse, ApiNotFoundResponse } from '@nestjs/swagger';
 import { Modelgroup } from './entities/modelgroup.entity';
 import { ModelgroupsService } from './modelgroups.service';
 
-@ApiTags('modelgroup', 'models')
+@ApiTags('Modelgroup', 'Models')
 @Controller('/scenemodels/modelgroups')
 export class ModelgroupsController {
     constructor(private readonly modelgroupsService: ModelgroupsService) {}

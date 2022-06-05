@@ -3,7 +3,7 @@ import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FeatureCollection, Point } from 'geojson';
 import { NavAidProperties, NavaidsService } from './navaids.service';
 
-@ApiTags('fligthgear')
+@ApiTags('Fligthgear')
 @Controller('/scenemodels/navaids')
 export class NavaidsController {
     constructor(private readonly navaidsService: NavaidsService) {}

@@ -3,7 +3,7 @@ import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { Paging } from 'src/shared/Paging.dto';
 import { StatisticsService } from './statistics.service';
 
-@ApiTags('stats')
+@ApiTags('Stats')
 @Controller('/scenemodels/stats')
 export class StatisticsController {
     constructor(private readonly statisticsService: StatisticsService) {}

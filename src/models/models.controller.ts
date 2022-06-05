@@ -27,7 +27,7 @@ import { Paging } from 'src/shared/Paging.dto';
 import { RequireTokenAuthentication } from 'src/auth/auth.decorator';
 import { Model } from './entities/model.entity';
 
-@ApiTags('models')
+@ApiTags('Models')
 @Controller('/scenemodels/models')
 export class ModelsController {
     constructor(private readonly modelsService: ModelsService, private readonly objectsService: ObjectsService) {}
@@ -38,34 +38,36 @@ export class ModelsController {
         return this.modelsService.create(createModelDto);
     }
 
+    @Get('/list')
     @ApiQuery({ name: 'limit', required: false })
     @ApiQuery({ name: 'offset', required: false })
-    @Get('/list')
     findAll(@Query('limit') limit, @Query('offset') offset) {
         return this.modelsService.findAll(limit || 10, offset || 0);
     }
 
-    @ApiQuery({ name: 'limit', required: false })
-    @ApiParam({ name: 'mg', required: true })
     @Get('/bymg/:mg')
-    findByModelGroup(@Param('mg') modelGroup, @Query('limit') limit, @Query('offset') offset) {
+    @ApiParam({ name: 'mg', required: true, description: 'Id or name of the Modelgroup' })
+    @ApiQuery({ name: 'limit', required: false, description: 'Maximum number of results' })
+    findByModelGroup(@Param('mg') modelGroup: string|number, @Query('limit') limit: number, @Query('offset') offset: number) {
         return this.modelsService.searchModel({ modelgroup: modelGroup, limit: limit, offset: offset });
     }
 
-    @ApiQuery({ name: 'searchCriteria', required: false, type: SearchModelDto })
     @Get('/search')
+    @ApiQuery({ name: 'searchCriteria', required: false, type: SearchModelDto })
     findModel(@Query() filters: SearchModelDto) {
         return this.modelsService.searchModel(filters);
     }
 
+    @Get('/search/byauthor/:id')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Author' })
     @ApiQuery({ name: 'limit', required: false })
     @ApiQuery({ name: 'offset', required: false })
-    @Get('/search/byauthor/:id')
     findModelByAuthor(@Param('id') id, @Query('limit') limit, @Query('offset') offset) {
         return this.modelsService.searchModel({ authorId: id, limit: limit, offset: offset });
     }
 
     @Get(':id')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     @ApiOkResponse({ type: Model, description: 'Returns the Model and entries with the given id' })
     @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
     async findOne(@Param('id') id: string, @Res() response: Response) {
@@ -89,12 +91,14 @@ export class ModelsController {
 
     @Patch(':id')
     @RequireTokenAuthentication()
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     update(@Param('id') id: string, @Body() updateModelDto: UpdateModelDto) {
         return this.modelsService.update(+id, updateModelDto);
     }
 
     @Delete(':id')
     @RequireTokenAuthentication()
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
     remove(@Param('id') id: string) {
         return this.modelsService.remove(+id);
@@ -102,28 +106,27 @@ export class ModelsController {
 
     @Get(':id/tgz')
     @Header('Content-type', 'application/x-gtar')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     @ApiOkResponse({ description: 'The full model file, packed in a zipped tar (tgz)' })
     @ApiNotFoundResponse({ description: 'Model not found or no model file'})
-    async getModelFileAsZip(@Param('id') id: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    async getModelFileAsZip(@Param('id') id: string, @Res({ passthrough: true }) response: Response): Promise<StreamableFile> {
         const modelFile = await this.modelsService.getModelFiles(+id);
-
-        res.set({
+        response.set({
             'Content-Type': 'application/x-gtar',
             'Content-Disposition': `attachment; filename="${modelFile.path}.tgz"`,
             'Last-Modified': modelFile.lastUpdated.toString(),
         });
-
         return new StreamableFile(Buffer.from(modelFile.modelfile, 'base64'));
     }
 
     @Get('/:id/thumb.jpg')
     @Header('Content-type', 'image/jpeg')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     @ApiOkResponse({ description: 'The thumbnail for the model' })
     @ApiNotFoundResponse({ description: 'Model not found or no image for the model'})
-    async getThumbnail(@Param('id') id: string, @Res({ passthrough: true }) res: Response): Promise<StreamableFile> {
+    async getThumbnail(@Param('id') id: string, @Res({ passthrough: true }) response: Response): Promise<StreamableFile> {
         const modelFile = await this.modelsService.getThumbnail(+id);
-
-        res.set({
+        response.set({
             'Content-Type': 'image/jpeg',
             'Content-Disposition': `filename="model_${id}.jpg"`,
             'Last-Modified': modelFile.lastUpdated.toString(),
@@ -138,6 +141,7 @@ export class ModelsController {
 
     @Get('/:id/AC3D')
     @Header('Content-type', 'application/octet-stream')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     @ApiOkResponse({ description: 'The 3D file from the model file (.ac)' })
     @ApiNotFoundResponse({ description: 'Model not found or no model file'})
     async getAC3DFromModelFile(@Param('id') id: string, @Res() response: Response) {
@@ -157,6 +161,8 @@ export class ModelsController {
     getAC3DFromModelFile2(@Param('id') id: string) {}
 
     @Get('/:id/model-content/:name')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
+    @ApiParam({ name: 'name', required: true, description: 'Filename within the Model file' })
     @ApiOkResponse({ description: 'The file from the model file' })
     @ApiNotFoundResponse({ description: 'Model not found or the requested file does not exist in de model file'})
     async getFileFromModelFile(@Param('id') id: string, @Param('name') fileName: string, @Res() response: Response) {
@@ -170,9 +176,10 @@ export class ModelsController {
             .on('end', () => fileTransmitter.handleClosing(response)); // close stream of notify not found
     }
 
+    @Get('/:id/positions')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
     @ApiQuery({ name: 'limit', required: false })
     @ApiQuery({ name: 'offset', required: false })
-    @Get('/:id/positions')
     @ApiOkResponse({ description: 'Returns the positions of the Model with the given id' })
     @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
     async getModelPositions(@Param('id') id: string, @Query('limit') limit, @Query('offset') offset) {

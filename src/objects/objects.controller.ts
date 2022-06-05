@@ -11,7 +11,7 @@ import { ObjectGroupsService } from './objectgroups.service';
 import { SearchFGSObjectDto } from './dto/search-object.dto';
 import { RequireTokenAuthentication } from 'src/auth/auth.decorator';
 
-@ApiTags('objects')
+@ApiTags('Objects')
 @Controller('/scenemodels/objects')
 export class ObjectsController {
     constructor(private readonly objectsService: ObjectsService, private readonly countriesService: CountriesService, private readonly objectGroupsService: ObjectGroupsService) {}
@@ -144,11 +144,6 @@ export class ObjectsController {
     @ApiNotFoundResponse({ description: 'No Object with the given id is found' })
     findOne(@Param('id') id: string) {
         return this.objectsService.findOne(+id);
-        //       .then(m => {
-        //         const obj = rowToObjectFeature(result)
-        //         obj.properties.model_name = m.name;
-        //         return response.json(obj);
-        //       })
     }
 
     @ApiQuery({ name: 'e', required: true, description: 'coordinate of position east' })
@@ -163,51 +158,7 @@ export class ObjectsController {
         @Query('n') north: number,
         @Query('s') south: number,
     ) { //: Promise<FeatureCollection<Point, Object>> {
-        return this.objectsService.findWithinBoundary(east, west, north, south).then((result) => {
-            return toFeatureCollection(result);
-        });
-        // new ObjectDAO().searchObject(
-        //   new ObjectSearchQuery()
-        //       .forBoundary(north, east, south, west)
-        // )
-        //   .then((result) => {
-        //     return response.json(toFeatureCollection(result));
-        //   })
+        return this.objectsService.findWithinBoundary(east, west, north, south).then(toFeatureCollection);
     }
 
-    rowToObjectProperties(row) {
-        return Object.assign(
-            {
-                id: row.id,
-                title: row.title,
-                heading: row.position.heading,
-                gndelev: row.position.groundElevation,
-                elevoffset: row.position.elevationOffset,
-                model_id: row.model_id,
-                model_name: row.model_name,
-                stg: row.stg,
-                country: row.country,
-            },
-            this.rowToModelGroup(row),
-            this.rowToObjectsGroup(row),
-        );
-    }
-
-    rowToModelGroup(row) {
-        if (row.modelgroup) {
-            return {
-                modelgroup: row.modelgroup,
-            };
-        }
-        return {};
-    }
-
-    rowToObjectsGroup(row) {
-        if (row.objectsgroup && row.objectsgroup.id) {
-            return {
-                objectsgroup: row.objectsgroup,
-            };
-        }
-        return {};
-    }
 }

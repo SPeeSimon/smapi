@@ -126,8 +126,8 @@ export class AuthController {
     @Get('test')
     @UseGuards(AuthGuard())
     @ApiOperation({ summary: 'Test to see if you are logged in' })
-    @ApiOkResponse({ description: 'You are logged in'})
-    @ApiUnauthorizedResponse({ description: 'You are not logged in'})
+    @ApiOkResponse({ description: 'You are logged in.'})
+    @ApiUnauthorizedResponse({ description: 'You are NOT logged in.'})
     testAuth(@Req() request) {
         return 'logged in';
     }

@@ -3,7 +3,7 @@ import { ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { FeatureCollection, Point } from 'geojson';
 import { SignProperties, SignsService } from './signs.service';
 
-@ApiTags('fligthgear')
+@ApiTags('Fligthgear')
 @Controller('/scenemodels/signs')
 export class SignsController {
     constructor(private readonly signsService: SignsService) {}
