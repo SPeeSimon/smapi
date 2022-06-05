@@ -31,7 +31,7 @@ export class RssNewsController {
                 author: [
                     {
                         name: post.author?.name,
-                        link: `${process.env.SCENERY_AUTHOR_URL}/${post.author?.id}`,
+                        link: post.author ? `${process.env.SCENERY_AUTHOR_URL}/${post.author?.id}`: '',
                     },
                 ],
             } as Item);
