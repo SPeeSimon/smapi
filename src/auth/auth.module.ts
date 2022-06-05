@@ -39,7 +39,6 @@ export const JWT_CONSTANTS = {
         forwardRef(() => FacebookModule.registerIfEnabled(process.env.AUTH_FACEBOOK_ENABLED === 'true')),
         forwardRef(() => TwitterModule.registerIfEnabled(process.env.AUTH_TWITTER_ENABLED === 'true')),
         forwardRef(() => GitlabModule.registerIfEnabled(process.env.AUTH_GITLAB_ENABLED === 'true')),
-        GitlabModule,
     ],
     controllers: [AuthController],
     providers: [

@@ -19,13 +19,6 @@ export class AuthorsController {
     findAll(@Query('offset') offset: number = 0, @Query('limit') limit: number = 10): Promise<Author[]> {
         return this.authorsService.findAll(new Paging(offset, Math.min(10000, Math.max(20, limit))));
     }
-    
-    @Get(':id')
-    @ApiOkResponse({ type: Author, description: 'Returns the Author with the given id' })
-    @ApiNotFoundResponse({ description: 'No Author with the given id is found' })
-    findOne(@Param('id') id: string) {
-        return this.authorsService.findOne(+id);
-    }
 
     @Post()
     @RequireTokenAuthentication()
@@ -39,9 +32,11 @@ export class AuthorsController {
         return this.authorsService.update(+id, updateAuthorDto);
     }
 
-    @Delete(':id')
-    @RequireTokenAuthentication()
-    remove(@Param('id') id: string) {
-        return this.authorsService.remove(+id);
+    @Get(':id')
+    @ApiOkResponse({ type: Author, description: 'Returns the Author with the given id' })
+    @ApiNotFoundResponse({ description: 'No Author with the given id is found' })
+    findOne(@Param('id') id: string) {
+        return this.authorsService.findOne(+id);
     }
+
 }

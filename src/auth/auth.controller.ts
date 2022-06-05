@@ -54,7 +54,7 @@ export class AuthController {
     }
 
     @Get('/linkauthor/checkmail/:email')
-    checkAuthorEmail(@Req() request: Request, @Res() response: Response) {
+    checkAuthorEmail(@Req() request: Request, @Res({passthrough: true}) response: Response) {
         // DB.getAuthorByEmail(request.params.email, function (err, data) {
         //     if (err) {
         //       return response.status(500).send("Database Error");
