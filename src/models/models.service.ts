@@ -1,14 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Feature, Point } from 'geojson';
-import { Paging } from 'src/shared/Paging.dto';
-import { numberOrDefault } from 'src/utils/validations';
+import { Paging } from 'src/shared/dto/Paging.dto';
+import { numberOrDefault } from 'src/shared/validations/validations';
 import { FindManyOptions, FindOneOptions, ILike, Raw, Repository } from 'typeorm';
 import { CreateModelDto } from './dto/create-model.dto';
 import { SearchModelDto } from './dto/search-model.dto';
 import { UpdateModelDto } from './dto/update-model.dto';
-import { Model } from './entities/model.entity';
+import { Model } from '../dao/entities/model.entity';
 import { ModelSearchQuery } from './ModelSearchQuery';
+import { Boundary } from 'src/shared/dto/Boundary.dto';
 
 export interface FGSModelOptions {
     withModelFile: boolean;
@@ -34,7 +35,7 @@ export class ModelsService {
 
     findAll(limit: number, offset: number) {
         const options = {
-            select: ['id', 'path', 'name', 'notes', 'shared', 'modified'], // , 'mg_id', 'mg_name', 'mg_path', 'au_id', 'au_name', 'au_email', 'au_notes'
+            select: ['id', 'path', 'name', 'description', 'modelgroup', 'lastUpdated'], // , 'mg_id', 'mg_name', 'mg_path', 'au_id', 'au_name', 'au_email', 'au_notes'
             relations: ['author', 'modelgroup'],
             take: limit,
             skip: offset,
@@ -44,8 +45,8 @@ export class ModelsService {
 
     findLatest(limit: number) {
         const options = {
-            // select: ['id', 'path', 'name', 'notes', 'shared', 'modified'], // , 'mg_id', 'mg_name', 'mg_path', 'au_id', 'au_name', 'au_email', 'au_notes'
-            relations: ['author', 'modelgroup'],
+            // select: ['id', 'path', 'name', 'description', 'shared', 'modified'], // , 'mg_id', 'mg_name', 'mg_path', 'au_id', 'au_name', 'au_email', 'au_notes'
+            relations: ['author', 'modelgroup', 'lastUpdated'],
             take: limit,
         } as FindManyOptions;
         return this.modelRepository.find(options);
@@ -53,7 +54,7 @@ export class ModelsService {
 
     findByPath(path: string) {
         const options = {
-            select: ['id', 'path', 'name', 'notes', 'modelgroup', 'lastUpdated'], // , 'mg_id', 'mg_name', 'mg_path', 'au_id', 'au_name', 'au_email', 'au_notes'
+            select: ['id', 'path', 'name', 'description', 'modelgroup', 'lastUpdated'], // , 'mg_id', 'mg_name', 'mg_path', 'au_id', 'au_name', 'au_email', 'au_notes'
             // mo_id, mo_path, mo_name, mo_notes, mo_modified, mg_id, mg_name, mg_path, au_id, au_name, au_email, au_notes
             where: { path: path },
             relations: ['author', 'modelgroup'],
@@ -61,13 +62,13 @@ export class ModelsService {
         return this.modelRepository.find(options);
     }
 
-    findWithinBoundary(east: number, west: number, north: number, south: number): Promise<Feature<Point, Model>[]> {
-        return this.searchModel({ n: north, e: east, s: south, w: west });
+    findWithinBoundary(boundary: Boundary): Promise<Feature<Point, Model>[]> {
+        return this.searchModel(boundary);
     }
 
     findOne(id: number, selectionOptions: FGSModelOptions) {
         const options = {
-            select: ['id', 'path', 'name', 'notes', 'modelgroup', 'lastUpdated']
+            select: ['id', 'path', 'name', 'description', 'modelgroup', 'lastUpdated']
                 .concat(selectionOptions.withModelFile ? ['modelfile'] : [])
                 .concat(selectionOptions.withThumbnail ? ['thumbfile'] : []),
             relations: ['author', 'modelgroup'],
@@ -118,7 +119,7 @@ export class ModelsService {
         console.log('searchModelDatatable', searchPattern, paging);
         return this.modelRepository.find({
             order: { lastUpdated: 'DESC' },
-            where: [{ path: ILike(searchPattern) }, { name: ILike(searchPattern) }, { notes: ILike(searchPattern) }],
+            where: [{ path: ILike(searchPattern) }, { name: ILike(searchPattern) }, { description: ILike(searchPattern) }],
             take: numberOrDefault(paging.limit, 20),
             skip: numberOrDefault(paging.offset, 0),
         });

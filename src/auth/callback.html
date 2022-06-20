@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <title>FlightGear Scenery - login</title>
+        <base href="/" />
+        <script type="text/javascript">
+              [window, window.opener].filter(w => w!=null).forEach(w=>w.postMessage({
+                type: 'fgs:token',
+                token: <%= JSON.stringify(it.accessToken) %>
+            }));
+        </script>
+    </head>
+    <body>
+        This is your access token. It is valid for <%= it.accessToken.expires_in %> seconds.
+        <div><%= it.accessToken.access_token %></div>
+    </body>
+</html>

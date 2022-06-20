@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ObjectGroup } from 'src/modelgroups/entities/group.entity';
+import { ObjectGroup } from 'src/dao/entities/group.entity';
 
 @Injectable()
 export class ObjectGroupsService {

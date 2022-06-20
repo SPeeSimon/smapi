@@ -2,10 +2,9 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-gitlab2';
 import { AuthService } from '../auth.service';
-import { isUrl } from 'src/utils/validations';
-import * as passport from 'passport';
+import { isUrl } from 'src/shared/validations/validations';
+import { SYSTEM_GITLAB } from './gitlab.module';
 
-const SYSTEM_GITLAB = 5;
 
 @Injectable()
 export class GitlabAuthStrategyService extends PassportStrategy(Strategy) {

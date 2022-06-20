@@ -3,13 +3,16 @@ import { ObjectsService } from './objects.service';
 import { CreateFGSObjectDto } from './dto/create-object.dto';
 import { UpdateObjectDto } from './dto/update-object.dto';
 import { ApiQuery, ApiResponse, ApiOkResponse, ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
-import { FGSObject } from './entities/object.entity';
-import { Paging } from 'src/shared/Paging.dto';
+import { FGSObject } from '../dao/entities/object.entity';
+import { Paging } from 'src/shared/dto/Paging.dto';
 import { toFeatureCollection } from 'src/shared/GeoJsonUtils';
 import { CountriesService } from './countries.service';
 import { ObjectGroupsService } from './objectgroups.service';
 import { SearchFGSObjectDto } from './dto/search-object.dto';
 import { RequireTokenAuthentication } from 'src/auth/auth.decorator';
+import { User } from 'src/auth/dto/User.entity';
+import { LoggedInUser } from 'src/auth/loggedinuser';
+import { Boundary, BoundaryPipe } from 'src/shared/dto/Boundary.dto';
 
 @ApiTags('Objects')
 @Controller('/scenemodels/objects')
@@ -18,9 +21,7 @@ export class ObjectsController {
 
     @Post()
     @RequireTokenAuthentication()
-    create(@Body() createObjectDto: CreateFGSObjectDto) {
-        return this.objectsService.create(createObjectDto);
-
+    create(@Body() createObjectDto: CreateFGSObjectDto, @LoggedInUser() user: User) {
         // router.post("/", [ authenticatedRequestValidation,
         //     checkBodyAndQuery('description').isString().trim().escape(),
         //     checkBodyAndQuery('longitude').isLength({max: 20}).isFloat({min: -180, max: 180}).toFloat(),       // .isLatLong()
@@ -35,75 +36,19 @@ export class ObjectsController {
         //     if (!errors.isEmpty()) {
         //       return response.status(400).json({ errors: errors.array() });
         //     }
-
-        //     const data = matchedData(request);
-        //     const description = data.description;
-        //     const longitude = data.longitude;
-        //     const latitude = data.latitude;
-        //     const obOffset = data.obOffset;
-        //     const heading = data.heading;
-        //     const countryCode = data.countryCode;
-        //     const modelId = data.modelId;
-
-        //     new ObjectDAO().addObject(data)
-        //       .then((result) => {
-        //         return response.json(toFeatureCollection(result));
-        //       })
-        //       .catch((err) => {
-        //         return response.status(500).send("Database Error");
-        //       });
-        //   });
+        return this.objectsService.create(createObjectDto);
     }
 
     @Patch(':id')
     @RequireTokenAuthentication()
-    update(@Param('id') id: string, @Body() updateObjectDto: UpdateObjectDto) {
+    update(@Param('id') id: string, @Body() updateObjectDto: UpdateObjectDto, @LoggedInUser() user: User) {
         return this.objectsService.update(+id, updateObjectDto);
-        // router.put("/:id", [
-        //     authenticatedRequestValidation,
-        //   ],
-        //     function (request, response, next) {
-        //     var id = Number(request.params.id);
-
-        //     if (isNaN(id)) {
-        //       return response.status(500).send("Invalid Request");
-        //     }
-
-        //     new ObjectDAO().updateObject(data)
-        //       .then((result) => {
-        //         if (0 == result.rows.length) {
-        //           return response.status(404).send("updating object failed");
-        //         }
-        //         return response.json(rowToObjectFeature(result.rows[0]));
-        //       })
-        //       .catch((err) => {
-        //         return response.status(500).send("Database Error");
-        //       });
-        //   });
     }
 
     @Delete(':id')
     @RequireTokenAuthentication()
-    remove(@Param('id') id: string) {
+    remove(@Param('id') id: string, @LoggedInUser() user: User) {
         return this.objectsService.remove(+id);
-        // router.delete("/:id", [
-        //   authenticatedRequestValidation,
-        //   param('id').isInt(),
-        // ],
-        //   function (request, response, next) {
-        //   var id = Number(request.params.id);
-
-        //   new ObjectDAO().deleteObject(id)
-        //     .then((result) => {
-        //       if (result) {
-        //         return response.status(404).send(`deleting object with id ${id} failed`);
-        //       }
-        //       return response.status(204).send("Deleted");
-        //     })
-        //     .catch((err) => {
-        //       return response.status(500).send("Database Error");
-        //     });
-        // });
     }
 
     @ApiQuery({ name: 'limit', required: false })
@@ -128,10 +73,7 @@ export class ObjectsController {
     @ApiQuery({ name: 'searchCriteria', required: false, type: SearchFGSObjectDto })
     @Get('/search')
     find(@Query() searchCriteria: Partial<SearchFGSObjectDto>) {
-        return this.objectsService.searchObject(searchCriteria);
-        //   .then((result) => {
-        //     return response.json(toFeatureCollection(result));
-        //   });
+        return this.objectsService.searchObject(searchCriteria).then(toFeatureCollection);
     }
 
     @Get('/countries')
@@ -146,19 +88,10 @@ export class ObjectsController {
         return this.objectsService.findOne(+id);
     }
 
-    @ApiQuery({ name: 'e', required: true, description: 'coordinate of position east' })
-    @ApiQuery({ name: 'w', required: true, description: 'coordinate of position west' })
-    @ApiQuery({ name: 'n', required: true, description: 'coordinate of position north' })
-    @ApiQuery({ name: 's', required: true, description: 'coordinate of position south' })
     @ApiResponse({ status: 200, isArray: false })
     @Get(['/', '/within'])
-    findWithinBoundary(
-        @Query('e') east: number,
-        @Query('w') west: number,
-        @Query('n') north: number,
-        @Query('s') south: number,
-    ) { //: Promise<FeatureCollection<Point, Object>> {
-        return this.objectsService.findWithinBoundary(east, west, north, south).then(toFeatureCollection);
+    findWithinBoundary(@Query(BoundaryPipe) boundary: Boundary) { //: Promise<FeatureCollection<Point, Object>> {
+        return this.objectsService.findWithinBoundary(boundary).then(toFeatureCollection);
     }
 
 }

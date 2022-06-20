@@ -1,5 +1,5 @@
 import { IsNotEmpty } from 'class-validator';
-import { Author } from 'src/authors/entities/author.entity';
+import { Author } from 'src/dao/entities/author.entity';
 import { ApiProperty } from '@nestjs/swagger';
 
 

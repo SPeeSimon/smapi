@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { getConnection } from 'typeorm';
 import { Point, Feature } from 'geojson';
+import { Boundary } from 'src/shared/dto/Boundary.dto';
 const util = require('util');
 
 export interface NavAidProperties {
@@ -41,7 +42,7 @@ export class NavaidsService {
         };
     }
 
-    findWithinBoundary(east: number, west: number, north: number, south: number): Promise<Feature<Point, NavAidProperties>[]> {
+    findWithinBoundary(boundary: Boundary): Promise<Feature<Point, NavAidProperties>[]> {
         return getConnection()
             .query(
                 `SELECT na_id, ST_Y(na_position) AS na_lat, ST_X(na_position) AS na_lon, 
@@ -52,16 +53,16 @@ export class NavaidsService {
                 [
                     util.format(
                         'POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))',
-                        west,
-                        south,
-                        west,
-                        north,
-                        east,
-                        north,
-                        east,
-                        south,
-                        west,
-                        south,
+                        boundary.south,
+                        boundary.west,
+                        boundary.west,
+                        boundary.north,
+                        boundary.east,
+                        boundary.north,
+                        boundary.east,
+                        boundary.south,
+                        boundary.west,
+                        boundary.south,
                     ),
                 ],
             )

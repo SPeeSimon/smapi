@@ -1,14 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Paging } from 'src/shared/Paging.dto';
+import { Paging } from 'src/shared/dto/Paging.dto';
 import { FindManyOptions, FindOneOptions, Repository } from 'typeorm';
-import { FeatureCollection, Feature, Point } from 'geojson';
+import { Feature, Point } from 'geojson';
 import { CreateFGSObjectDto } from './dto/create-object.dto';
 import { UpdateObjectDto } from './dto/update-object.dto';
-import { FGSObject } from './entities/object.entity';
+import { FGSObject } from '../dao/entities/object.entity';
 import { ObjectSearchQuery } from './ObjectSearchQuery';
 import { SearchFGSObjectDto } from './dto/search-object.dto';
-import { toFeatureCollection, toObjectFeature } from 'src/shared/GeoJsonUtils';
+import { toObjectFeature } from 'src/shared/GeoJsonUtils';
+import { Boundary } from 'src/shared/dto/Boundary.dto';
 
 @Injectable()
 export class ObjectsService {
@@ -27,8 +28,6 @@ export class ObjectsService {
             modified: new Date(),
         } as Partial<FGSObject>;
         return this.objectRepository.create(Object.assign({}, defaultValues, createObjectDto));
-        //   text: "INSERT INTO fgs_objects (ob_id, ob_text, wkb_geometry, ob_gndelev, ob_elevoffset, ob_heading, ob_country, ob_model, ob_group, ob_modified) \
-        //         VALUES (DEFAULT, $1, ST_PointFromText('POINT($2 $3)', 4326), -9999, $4, $5, $6, $7, 1, now()) RETURNING ob_id;",
     }
 
     findAll(paging: Paging) {
@@ -67,20 +66,6 @@ export class ObjectsService {
         return this.objectRepository.delete(id);
     }
 /*
-    getCountryFromRow(row): Country {
-        if (row['co_code']) {
-            return { code: row['co_code'], name: row['co_name'], three: row['co_three'] };
-        }
-        return null;
-    }
-
-    getObjectGroupFromRow(row) {
-        // $objectsGroup = new \model\ObjectsGroup();
-        return {
-            id: row['gp_id'],
-            name: row['gp_name'],
-        };
-    }
 
     getObjectFromRow(row): Feature<Point, FGSObject> {
         // $object = new \model\TheObject();
@@ -122,8 +107,8 @@ export class ObjectsService {
         return this.searchObject({ point: [long, lat] });
     }
 
-    findWithinBoundary(east: number, west: number, north: number, south: number): Promise<Feature<Point, FGSObject>[]> {
-        return this.searchObject({ n: north, e: east, s: south, w: west });
+    findWithinBoundary(boundary: Boundary): Promise<Feature<Point, FGSObject>[]> {
+        return this.searchObject(boundary);
     }
 
     getObjectsByModel(modelId: number, paging?: Paging) {

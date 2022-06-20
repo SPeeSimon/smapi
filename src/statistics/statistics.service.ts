@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Paging } from 'src/shared/Paging.dto';
+import { Paging } from 'src/shared/dto/Paging.dto';
 import { getConnection } from 'typeorm';
 
 @Injectable()
@@ -73,7 +73,10 @@ export class StatisticsService {
         limit $1 offset $2`,
                 [paging.limit, paging.offset],
             )
-            .then((result) => result.map(this.rowToAuthorAndCount));
+            .then((result) => {
+                console.log('result', result)
+                return result.map(this.rowToAuthorAndCount)
+            });
     }
 
     getStatisticsModelsByAuthorAndRange(paging: Paging, days: number) {
@@ -93,12 +96,12 @@ export class StatisticsService {
     rowToAuthorAndCount(row) {
         return {
             id: Number(row.au_id),
-            author: row.au_name.trim(),
+            name: row.au_name.trim(),
             count: Number(row.count),
         };
     }
 
-    getModelsByCountry() {
+    getModelsByCountry(paging: Paging) {
         return getConnection()
             .query(
                 'SELECT co_code, trim(co_name) as co_name, \
@@ -110,7 +113,29 @@ export class StatisticsService {
                     WHERE co_three IS NOT NULL \
                     GROUP BY co_code \
                     HAVING COUNT(ob_id)/(SELECT shape_sqm FROM gadm2_meta WHERE iso ILIKE co_three) > 0 \
-                    ORDER BY count DESC',
+                    ORDER BY count DESC \
+                    limit $1 offset $2',
+                    [paging.limit, paging.offset],
+            )
+            .then((result) => result.map(this.rowToModelsByCountry));
+    }
+
+    getModelsByCountryAndRange(paging: Paging, days: number) {
+        return getConnection()
+            .query(
+                `SELECT co_code, trim(co_name) as co_name, \
+                          co_three, \
+                          COUNT(ob_id) AS count, \
+                          COUNT(ob_id)/(SELECT shape_sqm/10000000000 FROM gadm2_meta WHERE iso ILIKE co_three) AS density \
+                    FROM fgs_objects \
+                    INNER JOIN fgs_countries ON ob_country = co_code \
+                    WHERE co_three IS NOT NULL \
+                    AND ob_modified > now()::date - (interval '1 days' * $3) \
+                    GROUP BY co_code \
+                    HAVING COUNT(ob_id)/(SELECT shape_sqm FROM gadm2_meta WHERE iso ILIKE co_three) > 0 \
+                    ORDER BY count DESC \
+                    limit $1 offset $2`,
+                    [paging.limit, paging.offset, days],
             )
             .then((result) => result.map(this.rowToModelsByCountry));
     }

@@ -1,12 +1,11 @@
 import { Point } from 'geojson';
 import { AuthorsService } from 'src/authors/authors.service';
-import { Author } from 'src/authors/entities/author.entity';
-import { ObjectGroup } from 'src/modelgroups/entities/group.entity';
-import { Modelgroup } from 'src/modelgroups/entities/modelgroup.entity';
-import { Model } from 'src/models/entities/model.entity';
+import { Author } from 'src/dao/entities/author.entity';
+import { ObjectGroup } from 'src/dao/entities/group.entity';
+import { Model } from 'src/dao/entities/model.entity';
 import { ModelsService } from 'src/models/models.service';
-import { Country } from 'src/navaids/entities/country.entity';
-import { FGSObject } from 'src/objects/entities/object.entity';
+import { Country } from 'src/dao/entities/country.entity';
+import { FGSObject } from 'src/dao/entities/object.entity';
 import { ObjectsService } from 'src/objects/objects.service';
 import { Zipped64 } from 'src/utils/Zipped64';
 
@@ -173,6 +172,7 @@ export class SerializeRequest {
 
     public serializeRequest(request: FGSMutatieRequest<any>) {
         var type, reqContentArray;
+        console.log('request', request)
 
         if (RequestObjectUpdate.isType(request)) {
             type = request.type;

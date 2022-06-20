@@ -2,10 +2,9 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-github2';
 import { AuthService } from '../auth.service';
-import { isUrl } from 'src/utils/validations';
-import * as passport from 'passport';
+import { isUrl } from 'src/shared/validations/validations';
+import { SYSTEM_GITHUB } from './github.module';
 
-const SYSTEM_GITHUB = 1;
 
 @Injectable()
 export class GithubAuthStrategyService extends PassportStrategy(Strategy) {
@@ -25,6 +24,7 @@ export class GithubAuthStrategyService extends PassportStrategy(Strategy) {
 
     async validate(request: any, accessToken, tokenSecret, profile): Promise<any> {
         const user = await this.authService.validateUser(SYSTEM_GITHUB, profile.emails[0].value);
+        // profile.id, profile.displayName, profile.username, profile.profileUrl, profile.provider
         // profile.photos[0].value
         // profile.displayName;
         if (!user) {

@@ -1,11 +1,11 @@
-import { Model } from '../entities/model.entity';
+import { Model } from '../../dao/entities/model.entity';
 
 export class CreateModelDto {
     // id;
     path: Model['path'];
     author: Model['author'] | { id }; //.id),
     name: Model['name'];
-    notes: Model['notes'];
+    description: Model['description'];
     thumbfile: Model['thumbfile'];
     modelfile: Model['modelfile'];
     shared: Model['modelgroup'] | { id };

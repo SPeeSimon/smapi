@@ -1,0 +1,20 @@
+Hi,
+
+We would like to let you know that a new object deletion request is pending (#<%= it.request.id %>). On <%= it.dtg %> UTC, someone from the IP address <%= it.ipaddr %> (<%= it.host %>) <%if (!empty(it.safeEmail)) {%>and with email address <%~ it.safeEmail %><%}%> issued the following request:
+
+Object #:         <%~ it.objectToDel.id %>
+Family:           <%~ it.modelMD.modelsGroup.name %>
+Model:            <%~ it.modelMD.name %>
+Ob. text/metadata:<%~ it.objectToDel.description %>
+Latitude:         <%~ it.objectToDelPos.latitude %>
+Longitude:        <%~ it.objectToDelPos.longitude %>
+Ground elevation: <%~ it.objectToDelPos.groundElevation %>
+Elevation offset: <%~ it.objectToDelPos.elevationOffset %>
+True orientation: <%~ it.objectToDelPos.orientation %>
+Comment:          <%~ strip_tags(it.request.comment) %>
+Map:              https://scenery.flightgear.org/map/?lon=<%~ it.objectToDelPos.longitude %>&lat=<%~ it.objectToDelPos.latitude %>&z=14
+
+Now please click the following link to view and confirm/reject the submission: https://scenery.flightgear.org/app.php?c=ObjectValidator&a=viewRequest&sig=<%~ it.request.sig %>
+
+
+<%~ includeFile('./signature.email.txt', {}) %>

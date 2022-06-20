@@ -1,0 +1,16 @@
+Hi,
+
+We would like to let you know that an update for a 3D model request is pending (#<%= it.request.id %>). On <%= it.dtg %> UTC, someone from the IP address <%= it.ipaddr %> (<%= it.host %>) <%if (!empty(it.safeContrEmail)) {%>and with email address <%~ it.safeContrEmail%><%}%> issued the following request:
+
+Family:           <%~ it.newModelMD.modelsGroup.name %>
+[ https://scenery.flightgear.org/app.php?c=Models&a=browse&shared=<%~ it.newModelMD.modelsGroup.id %> ]
+Path:             <%~ it.newModelMD.filename %>
+Author:           <%~ it.newModelMD.author.name %>
+Contributor email <%~ it.safeContrEmail %>
+Model name:       <%~ it.newModelMD.name %>
+Description:      <%~ strip_tags(it.newModelMD.description) %>
+Comment by user:  <%~ strip_tags(it.request.comment) %>
+
+Now please click the following link to view and confirm/reject the submission: "https://scenery.flightgear.org/app.php?c=UpdateModelValidator&a=viewRequest&sig=<%~ it.request.sig %>
+
+<%~ includeFile('./signature.email.txt', {}) %>

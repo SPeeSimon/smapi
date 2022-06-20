@@ -1,0 +1,15 @@
+Hi,
+
+On <%= it.dtg %> UTC, you issued a 3D model update request (#<%= it.request.id %> named '<%~ it.modelMD.name %>').
+
+We are glad to let you know that this request has been accepted!
+
+<%if (it.comment) {%>
+The screener left a comment for you: '<%~ it.comment%>'
+
+<%}%>
+You can check the model at https://scenery.flightgear.org/app.php?c=Models&a=view&id=<%~ it.modelMD.id %>
+
+Thanks for your help in making FlightGear better!
+                
+<%~ includeFile('./signature.email.txt', {}) %>

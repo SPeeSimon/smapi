@@ -32,29 +32,29 @@ const redirections = [
     // new Redirector('AddObjects', 'check', ''),
     // new Redirector('AddObjects', 'confirmMass', ''),
     // new Redirector('AddObjectsValidator', 'viewRequest', `${SCENERY_URL}/#/verify/objects/:sig`, ['sig']), // http://localhost:8082/app.php?c=AddObjectsValidator&a=viewRequest&sig=800842d18b10f1ce7ca682f47fcb175c0cec82b306f8f6cdb20317d622ce1b0d
-    new Redirector('Authors', 'view', `${SCENERY_URL}/#/author/:id`, ['id']),
-    new Redirector('Authors', 'browse', `${SCENERY_URL}/#/authors/`),
+    new Redirector('Authors', 'view', `${SCENERY_URL}/authors/:id`, ['id']),
+    new Redirector('Authors', 'browse', `${SCENERY_URL}/authors/`),
     // new Redirector('DeleteObjects', 'findform', ''),
     // new Redirector('DeleteObjects', 'findObjWithPos', ''),
     // new Redirector('DeleteObjects', 'confirmDeleteForm', ''),
     // new Redirector('DeleteObjects', 'requestForDelete', ''),
     // new Redirector('GenericValidator', 'rejectRequest', ''),
     new Redirector('Index', 'index', `${SCENERY_URL}/`),
-    new Redirector('Models', 'browse', `${SCENERY_URL}/#/models/`),
-    new Redirector('Models', 'browseRecent', `${SCENERY_URL}/#/models/`),
-    new Redirector('Models', 'view', `${SCENERY_URL}/#/model/:id`, ['id']),
-    // new Redirector('Models', 'modelViewer', ''), // `${SCENERY_URL}/#/model/:id`
-    new Redirector('Models', 'thumbnail', `${SCENERY_URL}/scenemodels/model/:id/thumb`, ['id']),
+    new Redirector('Models', 'browse', `${SCENERY_URL}/models/`),
+    new Redirector('Models', 'browseRecent', `${SCENERY_URL}/models/`),
+    new Redirector('Models', 'view', `${SCENERY_URL}/model/:id`, ['id']),
+    // new Redirector('Models', 'modelViewer', ''), // `${SCENERY_URL}/public/modelviewer/model-viewer?modelid=:id`
+    new Redirector('Models', 'thumbnail', `/scenemodels/models/:id/thumb`, ['id']),
     // new Redirector('Models', 'contentFilesInfos', ''),
-    new Redirector('Models', 'getAC3D', `${SCENERY_URL}/scenemodels/model/:id/AC3D`, ['id']),
-    new Redirector('Models', 'getPackage', `${SCENERY_URL}/scenemodels/model/:id/tgz`, ['id']),
-    // new Redirector('Models', 'getTexture', ''), // `${SCENERY_URL}/scenemodels/model/:id/texture` // image/png
-    new Redirector('Models', 'getFile', `${SCENERY_URL}/scenemodels/model/:id/model-content/:name`, ['id', 'name']), //  https://scenery.flightgear.org/app.php?c=Models&a=getFile&id=5312&name=htbocag1.png
-    new Redirector('News', 'display', `${SCENERY_URL}/#/news/`),
-    new Redirector('Objects', 'view', `${SCENERY_URL}/#/object/:id`, ['id']),
-    new Redirector('Objects', 'search', `${SCENERY_URL}/#/objects/`),
+    new Redirector('Models', 'getAC3D',    `/scenemodels/models/:id/AC3D`, ['id']),
+    new Redirector('Models', 'getPackage', `/scenemodels/models/:id/tgz`, ['id']),
+    new Redirector('Models', 'getTexture', `/scenemodels/models/:id/model-content/:name`, ['id', 'name']), // https://scenery.flightgear.org/app.php?c=Models&a=getTexture&id=8137&name=HausGrafenwaldVBS7.png
+    new Redirector('Models', 'getFile',    `/scenemodels/models/:id/model-content/:name`, ['id', 'name']), // https://scenery.flightgear.org/app.php?c=Models&a=getFile&id=5312&name=htbocag1.png
+    new Redirector('News', 'display', `${SCENERY_URL}/news/`),
+    new Redirector('Objects', 'view', `${SCENERY_URL}/object/:id`, ['id']),
+    new Redirector('Objects', 'search', `${SCENERY_URL}/objects/`),
     // new Redirector('ObjectValidator', 'viewRequest', `${SCENERY_URL}/#/verify/objects/:sig`, ['sig']), http://localhost:8082/app.php?c=ObjectValidator&a=viewRequest&sig=fb65be9a7bbfce6ba8c8fc6a97c0735e82f77f96b3115b381d94fdd01fb9f34c
-    new Redirector('Plain', 'statistics', `${SCENERY_URL}/#/stats`),
+    new Redirector('Plain', 'statistics', `${SCENERY_URL}/stats`),
     // new Redirector('Request', 'getGroupModelsMDXML', ''),
     // new Redirector('Request', 'getModelInfoXML', ''),
     // new Redirector('Request', 'getCountryCodeAtXML', ''),
@@ -83,7 +83,7 @@ const redirections = [
     // new Redirector('Validator', 'getNewModelTextureTN', '')
 ];
 
-@ApiTags('Fligthgear')
+@ApiTags('Flightgear')
 @Controller()
 export class RedirectController {
     /**
@@ -99,7 +99,7 @@ export class RedirectController {
 
     makeRedirectUrl(requestedAction, request) {
         const newLocation = (requestedAction.urlParams || []).reduce(
-            (val, param) => val.replace(`:${param}`, request.query[param]),
+            (url, param) => url.replace(`:${param}`, request.query[param]),
             requestedAction.newLocation,
         );
         const additionalQueryParams = this.queryValuesForRedirect(request, requestedAction.urlParams);
@@ -125,6 +125,6 @@ export class RedirectController {
             return { url: `${this.makeRedirectUrl(foundRedirect, request)}` };
         }
         Logger.warn(`redirect unknown for ${request.originalUrl}`, 'Redirect');
-        return { url: `${SCENERY_URL}/#/notfound?redirected=true&origin=${encodeURIComponent(request.originalUrl)}` };
+        return { url: `${SCENERY_URL}/notfound?redirected=true&origin=${encodeURIComponent(request.originalUrl)}` };
     }
 }

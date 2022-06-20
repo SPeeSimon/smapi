@@ -1,0 +1,13 @@
+Hi,
+
+On <%= it.dtg %> UTC, you issued an object(s) import request (#<%= it.request.id %>).
+
+We are glad to let you know that this request has been accepted!
+
+<%if (it.comment) {%>
+The screener left a comment for you: '<%~ it.comment%>'
+
+<%}%>
+Thanks for your help in making FlightGear better!
+
+<%~ includeFile('./signature.email.txt', {}) %>

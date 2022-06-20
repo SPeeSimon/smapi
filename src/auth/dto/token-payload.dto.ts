@@ -1,4 +1,4 @@
-import { User } from "../entities/user.entity";
+import { User } from "./User.entity";
 
 export class AuthenticationPayload {
     constructor(public iss: string, public jti: number, public sub: User, public iat: Date) {}

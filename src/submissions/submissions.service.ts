@@ -1,26 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindConditions, Repository } from 'typeorm';
-import { PositionRequest } from './entities/request.entity';
+import { PositionRequest } from '../dao/entities/request.entity';
 import { UpdateSubmissionDto } from './dto/update-submission.dto';
 import { SerializeRequest } from './request-serializer.service';
 import { Zipped64 } from 'src/utils/Zipped64';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { SubmissionCreatedEvent } from './events/submission-created.event.dto';
 
 const crypto = require('crypto');
 
 const HOSTNAME = require('os').hostname();
 const HOST_RANDOM = crypto.randomBytes(16).toString();
 
-
 @Injectable()
 export class SubmissionsService {
+
     constructor(
         @InjectRepository(PositionRequest) private positionRequestRepository: Repository<PositionRequest>,
         private serializeRequestService: SerializeRequest,
+        private eventEmitter: EventEmitter2,
     ) {}
 
     create(createSubmissionDto: unknown) {
-        return 'This action adds a new submission';
+        // return 'This action adds a new submission';
+        return this.saveRequest(createSubmissionDto);
     }
 
     saveRequest(request) {
@@ -30,10 +34,18 @@ export class SubmissionsService {
         }><${HOST_RANDOM}><${encodedRequest}>`;
         const sig = crypto.createHash('sha256').update(shaToCompute, 'utf8').digest();
 
-        return this.positionRequestRepository.save({
-            hash: sig,
-            base64_sqlz: encodedRequest,
-        });
+        return this.positionRequestRepository
+            .save({
+                hash: sig,
+                base64_sqlz: encodedRequest,
+            })
+            .then((result) => {
+                this.eventEmitter.emit(
+                    SubmissionCreatedEvent.EVENT_NAME,
+                    new SubmissionCreatedEvent({ ipaddress: request.remoteAddress, host: request.host }, sig, result),
+                );
+                return result;
+            });
     }
 
     findAll() {
@@ -53,24 +65,29 @@ export class SubmissionsService {
     }
 
     public getPendingRequests() {
-        return this.findAll().then(result => {return {
-            ok: result.filter(e => e.result == 'ok'),
-            failed: result.filter(e => e.result == 'failed'), // new RequestError(row.id, row.hash, ex.message)
-        }});
+        return this.findAll().then((result) => {
+            return {
+                ok: result.filter((e) => e.result == 'ok'),
+                failed: result.filter((e) => e.result == 'failed'), // new RequestError(row.id, row.hash, ex.message)
+            };
+        });
     }
 
-
     findOne(id: number) {
-        return this.positionRequestRepository.findOneOrFail(id)
-                  // .then(result => this.serializeRequestService.getRequestFromRow(result))
-                  .then(result => this.readJsonValue(result));
+        return (
+            this.positionRequestRepository
+                .findOneOrFail(id)
+                // .then(result => this.serializeRequestService.getRequestFromRow(result))
+                .then((result) => this.readJsonValue(result))
+        );
     }
 
     findOneBySig(sig) {
-        return this.positionRequestRepository.findOneOrFail({
-            where: { spr_hash: sig },
-        })
-        .then(result => this.readJsonValue(result));
+        return this.positionRequestRepository
+            .findOneOrFail({
+                where: { spr_hash: sig },
+            })
+            .then((result) => this.readJsonValue(result));
         // .then(result => this.serializeRequestService.getRequestFromRow(result));
     }
 

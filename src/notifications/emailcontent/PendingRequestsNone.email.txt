@@ -1,0 +1,5 @@
+Hi,
+
+There are currently no pending requests. Well done! Hopefully some more will come soon ;-).
+
+<%~ includeFile('./signature.email.txt', {}) %>

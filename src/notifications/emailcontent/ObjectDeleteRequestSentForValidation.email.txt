@@ -1,0 +1,18 @@
+Hi,
+
+On <%= it.dtg %> UTC, someone from the IP address <%= it.ipaddr %> (<%= it.host %>), which is thought to be you, issued an object deletion request (#<%= it.request.id %>).
+
+We would like to let you know that this request was sent for validation. Allow up to a few days for your request to be processed.
+
+Family:           <%~ it.modelMD.modelsGroup.name %>
+Model:            <%~ it.modelMD.name %>
+Latitude:         <%~ it.objectToDelPos.latitude %>
+Longitude:        <%~ it.objectToDelPos.longitude %>
+Ground elevation: <%~ it.objectToDelPos.groundElevation %>
+Elevation offset: <%~ it.objectToDelPos.elevationOffset %>
+True orientation: <%~ it.objectToDelPos.orientation %>
+Comment:          <%~ strip_tags(it.request.comment) %>
+Map:              https://scenery.flightgear.org/map/?lon=<%~ it.objectToDelPos.longitude %>&lat=<%~ it.objectToDelPos.latitude %>&z=14
+
+
+<%~ includeFile('./signature.email.txt', {}) %>

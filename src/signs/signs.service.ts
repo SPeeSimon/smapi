@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { getConnection } from 'typeorm';
 import { Point, Feature } from 'geojson';
-const util = require("util");
+import { Boundary } from 'src/shared/dto/Boundary.dto';
+import { toObjectFeature } from 'src/shared/GeoJsonUtils';
+const util = require('util');
 
 export interface SignProperties {
     id: string;
@@ -13,26 +15,24 @@ export interface SignProperties {
 @Injectable()
 export class SignsService {
     rowToSignsFeature(row): Feature<Point, SignProperties> {
-        return {
-            type: 'Feature',
-            id: row['si_id'],
-            geometry: {
-                type: 'Point',
-                coordinates: [row['ob_lon'], row['ob_lat']],
-            },
-            properties: {
+        return toObjectFeature(
+            {
                 id: row['si_id'],
                 heading: row['si_heading'],
                 definition: row['si_definition'],
                 gndelev: row['si_gndelev'],
             },
-        };
+            {
+                type: 'Point',
+                coordinates: [row['ob_lon'], row['ob_lat']],
+            },
+        );
     }
 
-    findWithinBoundary(east: number, west: number, north: number, south: number): Promise<Feature<Point, SignProperties>[]> {
+    findWithinBoundary(boundary: Boundary): Promise<Feature<Point, SignProperties>[]> {
         return getConnection()
             .query(
-            `SELECT si_id, ST_Y(wkb_geometry) AS ob_lat, ST_X(wkb_geometry) AS ob_lon, 
+                `SELECT si_id, ST_Y(wkb_geometry) AS ob_lat, ST_X(wkb_geometry) AS ob_lon, 
             si_heading, si_gndelev, si_definition 
             FROM fgs_signs 
             WHERE ST_Within(wkb_geometry, ST_GeomFromText($1,4326)) 
@@ -40,16 +40,16 @@ export class SignsService {
                 [
                     util.format(
                         'POLYGON((%d %d,%d %d,%d %d,%d %d,%d %d))',
-                        west,
-                        south,
-                        west,
-                        north,
-                        east,
-                        north,
-                        east,
-                        south,
-                        west,
-                        south,
+                        boundary.west,
+                        boundary.south,
+                        boundary.west,
+                        boundary.north,
+                        boundary.east,
+                        boundary.north,
+                        boundary.east,
+                        boundary.south,
+                        boundary.west,
+                        boundary.south,
                     ),
                 ],
             )

@@ -1,0 +1,16 @@
+Hi,
+
+On <%= it.dtg %> UTC, you issued a 3D model import request.
+
+We are glad to let you know that this request was accepted!
+
+For reference, the ID of this request is '<%= it.request.id %>' (model and object) and it is named '<%~ it.newModelMD.name %>'
+
+<%if (it.comment) {%>
+The screener left a comment for you: '<%~ it.comment %>'
+
+<%}%>
+Thanks for your help in making FlightGear better!
+
+
+<%~ includeFile('./signature.email.txt', {}) %>

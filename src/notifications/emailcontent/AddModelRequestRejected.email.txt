@@ -1,0 +1,17 @@
+Hi,
+
+On <%= it.dtg %> UTC, you issued a 3D model import request.
+
+We are sorry to let you know that this request was rejected.
+
+For reference, the ID of this request was '<%= it.request.id %>' (model and object) and it was named '<%~ it.modelMD.name %>'.
+
+<%if (it.comment) {%>
+The screener left a comment for you: '<%~ it.comment%>'
+
+<%}%>
+
+Please do not let this stop you from sending us an improved version of this model or other models.
+
+
+<%~ includeFile('./signature.email.txt', {}) %>

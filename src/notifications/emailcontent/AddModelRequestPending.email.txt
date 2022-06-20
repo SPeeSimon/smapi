@@ -1,0 +1,21 @@
+Hi,
+
+We would like to let you know that a new 3D model request is pending (#<%= it.request.id %>). On <%= it.dtg %> UTC, someone from the IP address <%= it.ipaddr %> (<%= it.host %>) and with email address <%~ it.contrEmail %> issued the following request:
+
+Family:           <%~ it.newModelMD.ModelsGroup.name %>
+[ https://scenery.flightgear.org/app.php?c=Models&a=browse&shared=<%~ it.newModelMD.modelsGroup.id %> ]
+Path:             <%~ it.newModelMD.filename %>
+Author:           <%~ it.newModelMD.author.name %><% if (it.newModelMD.author.id == 1) { %> (must be added first)<% } %>
+Model name:       <%~ it.newModelMD.name %>
+Description:      <%~ strip_tags(it.newModelMD.description) %>
+Latitude:         <%~ it.newObjPos.latitude %>
+Longitude:        <%~ it.newObjPos.longitude %>
+Country:          <%~ it.newObject.country.name %>
+Elevation offset: <%~ it.newObjPos.elevationOffset %>
+True orientation: <%~ it.newObjPos.orientation %>
+Map:              https://scenery.flightgear.org/map/?lon=<%~ it.newObjPos.longitude %>&lat=<%~ it.newObjPos.latitude %>&z=14
+
+Now please click the following link to view and confirm/reject the submission: https://scenery.flightgear.org/app.php?c=AddModelValidator&a=viewRequest&sig=<%~ it.request.sig %>
+
+
+<%~ includeFile('./signature.email.txt', {}) %>

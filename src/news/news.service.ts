@@ -1,10 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Paging } from 'src/shared/Paging.dto';
+import { Paging } from 'src/shared/dto/Paging.dto';
 import { FindManyOptions, Raw, Repository } from 'typeorm';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
-import { News } from './entities/news.entity';
+import { News } from '../dao/entities/news.entity';
 
 @Injectable()
 export class NewsService {

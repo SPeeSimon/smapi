@@ -1,6 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Position } from 'geojson';
-import { Boundary } from 'src/shared/Boundary.dto';
+import { Boundary } from 'src/shared/dto/Boundary.dto';
 
 export class SearchModelDto extends Boundary {
     @ApiProperty({ description: 'Search for models with the given path', required: false })

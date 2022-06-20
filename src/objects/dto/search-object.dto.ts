@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Position } from "geojson";
-import { Boundary } from 'src/shared/Boundary.dto';
+import { Boundary } from 'src/shared/dto/Boundary.dto';
 
 export class SearchFGSObjectDto extends Boundary {
     @ApiProperty({ description: 'Search for description of the object', required: false })

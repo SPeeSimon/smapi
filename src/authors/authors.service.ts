@@ -1,12 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Model } from 'src/models/entities/model.entity';
-import { Paging } from 'src/shared/Paging.dto';
-import { numberOrDefault } from 'src/utils/validations';
-import { FindManyOptions, Repository, EntityNotFoundError } from 'typeorm';
+import { Model } from 'src/dao/entities/model.entity';
+import { Paging } from 'src/shared/dto/Paging.dto';
+import { numberOrDefault } from 'src/shared/validations/validations';
+import { Repository, EntityNotFoundError } from 'typeorm';
 import { CreateAuthorDto } from './dto/create-author.dto';
 import { UpdateAuthorDto } from './dto/update-author.dto';
-import { Author } from './entities/author.entity';
+import { Author } from '../dao/entities/author.entity';
 
 @Injectable()
 export class AuthorsService {
@@ -17,7 +17,11 @@ export class AuthorsService {
         return this.authorRepository.save(author);
     }
 
-    private mapRawToAuthor(raw) {
+    private mapRawRowsToAuthor(rawResult: unknown[]): Author[] {
+        return rawResult.map(this.mapRawToAuthor);
+    }
+
+    private mapRawToAuthor(raw: unknown): Author {
         return {
             id: raw['author_au_id'],
             name: raw['author_au_name'],
@@ -36,52 +40,37 @@ export class AuthorsService {
             .groupBy('models.mo_author');
     }
 
-    findAll(paging: Paging) {
-        return this.authorRepository
-            .createQueryBuilder('author')
-            .orderBy('author.id')
-            .skip(paging.offset)
-            .limit(paging.limit)
+    private withModelCount(queryBuilder) {
+        return queryBuilder
             .leftJoinAndMapOne(
                 'modelCount',
                 this.countModelsPerAuthorSubQuery,
                 'model_count',
                 'model_count.mo_author = author.id',
             )
-            .addSelect('model_count.model_count', 'author_modelCount1')
+            .addSelect('model_count.model_count', 'author_modelCount');
+    }
+
+    findAll(paging: Paging) {
+        return this.withModelCount(this.authorRepository.createQueryBuilder('author'))
+            .orderBy('author.id')
+            .offset(paging.offset)
+            .limit(paging.limit)
             .getRawMany()
-            .then((result) => result.map((r) => this.mapRawToAuthor(r)));
+            .then(r => this.mapRawRowsToAuthor(r));
     }
 
     findByEmail(email: string) {
-        return this.authorRepository
-            .createQueryBuilder('author')
-            .where({ email: email })
-            .leftJoinAndMapOne(
-                'modelCount',
-                this.countModelsPerAuthorSubQuery,
-                'model_count',
-                'model_count.mo_author = author.id',
-            )
-            .addSelect('model_count.model_count', 'author_modelCount')
+        return this.withModelCount(this.authorRepository.createQueryBuilder('author').where({ email: email }))
             .getRawMany()
-            .then((result) => result.map((r) => this.mapRawToAuthor(r)));
+            .then(r => this.mapRawRowsToAuthor(r));
     }
 
     findOne(id: number) {
-        return this.authorRepository
-            .createQueryBuilder('author')
-            .where({ id: id })
-            .leftJoinAndMapOne(
-                'modelCount',
-                this.countModelsPerAuthorSubQuery,
-                'model_count',
-                'model_count.mo_author = author.id',
-            )
-            .addSelect('model_count.model_count', 'author_modelCount2')
+        return this.withModelCount(this.authorRepository.createQueryBuilder('author').where({ id: id }))
             .getRawOne()
             .then((r) => {
-                if (r == undefined) {
+                if (r == undefined || r == null) {
                     throw new EntityNotFoundError(Author, { id: id });
                 }
                 return this.mapRawToAuthor(r);
@@ -92,4 +81,8 @@ export class AuthorsService {
         return this.authorRepository.update(id, updateAuthorDto);
     }
 
+    removeEmail(author: Partial<Author> | Author) {
+        delete author.email;
+        return author;
+    }
 }

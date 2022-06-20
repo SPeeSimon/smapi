@@ -15,17 +15,20 @@ import {
 import { ModelsService } from './models.service';
 import { CreateModelDto } from './dto/create-model.dto';
 import { UpdateModelDto } from './dto/update-model.dto';
-import { ApiParam, ApiOkResponse, ApiMovedPermanentlyResponse, ApiNotFoundResponse, ApiQuery, ApiTags, ApiResponse } from '@nestjs/swagger';
+import { ApiParam, ApiOkResponse, ApiMovedPermanentlyResponse, ApiNotFoundResponse, ApiQuery, ApiTags, ApiResponse, ApiOperation, ApiExcludeEndpoint } from '@nestjs/swagger';
 import { SearchModelDto } from './dto/search-model.dto';
 import { Response } from 'express';
 import { SingleFileTransmitter } from 'src/utils/FileUtils';
 import { MultiStream } from 'src/utils/MultiStream';
 import * as tar from 'tar';
 import { ObjectsService } from 'src/objects/objects.service';
-import { Paging } from 'src/shared/Paging.dto';
+import { Paging } from 'src/shared/dto/Paging.dto';
 import { RequireTokenAuthentication } from 'src/auth/auth.decorator';
-import { Model } from './entities/model.entity';
+import { Model } from '../dao/entities/model.entity';
 import { toFeatureCollection } from 'src/shared/GeoJsonUtils';
+import { User } from 'src/auth/dto/User.entity';
+import { LoggedInUser } from 'src/auth/loggedinuser';
+import { Boundary, BoundaryPipe } from 'src/shared/dto/Boundary.dto';
 
 @ApiTags('Models')
 @Controller('/scenemodels/models')
@@ -34,7 +37,7 @@ export class ModelsController {
 
     @Post()
     @RequireTokenAuthentication()
-    create(@Body() createModelDto: CreateModelDto) {
+    create(@Body() createModelDto: CreateModelDto, @LoggedInUser() user: User) {
         return this.modelsService.create(createModelDto);
     }
 
@@ -48,8 +51,9 @@ export class ModelsController {
     @Get('/bymg/:mg')
     @ApiParam({ name: 'mg', required: true, description: 'Id or name of the Modelgroup' })
     @ApiQuery({ name: 'limit', required: false, description: 'Maximum number of results' })
+    @ApiQuery({ name: 'offset', required: false, description: 'Skip number of results' })
     findByModelGroup(@Param('mg') modelGroup: string|number, @Query('limit') limit: number, @Query('offset') offset: number) {
-        return this.modelsService.searchModel({ modelgroup: modelGroup, limit: limit, offset: offset });
+        return this.findModel({ modelgroup: modelGroup, limit: limit, offset: offset });
     }
     
     @Get('/search')
@@ -63,61 +67,13 @@ export class ModelsController {
     @ApiQuery({ name: 'limit', required: false })
     @ApiQuery({ name: 'offset', required: false })
     findModelByAuthor(@Param('id') id, @Query('limit') limit, @Query('offset') offset) {
-        return this.modelsService.searchModel({ authorId: id, limit: limit, offset: offset });
+        return this.findModel({ authorId: id, limit: limit, offset: offset });
     }
 
-    @ApiQuery({ name: 'e', required: true, description: 'coordinate of position east' })
-    @ApiQuery({ name: 'w', required: true, description: 'coordinate of position west' })
-    @ApiQuery({ name: 'n', required: true, description: 'coordinate of position north' })
-    @ApiQuery({ name: 's', required: true, description: 'coordinate of position south' })
     @ApiResponse({ status: 200, isArray: false })
     @Get(['/', '/within'])
-    findWithinBoundary(
-        @Query('e') east: number,
-        @Query('w') west: number,
-        @Query('n') north: number,
-        @Query('s') south: number,
-    ) { //: Promise<FeatureCollection<Point, Object>> {
-        return this.modelsService.findWithinBoundary(east, west, north, south).then(toFeatureCollection);
-    }
-
-    
-    @Get(':id')
-    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
-    @ApiOkResponse({ type: Model, description: 'Returns the Model and entries with the given id' })
-    @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
-    async findOne(@Param('id') id: string, @Res() response: Response) {
-        const model = await this.modelsService.findOne(+id, { withModelFile: true, withThumbnail: false });
-        model['content'] = [];
-
-        await new MultiStream(Buffer.from(model.modelfile, 'base64'))
-            .on('error', (e) => console.log('error reading stream', e))
-            .pipe(tar.list()) // treat as archive
-            .on('entry', (entry) =>
-                model['content'].push({
-                    filename: entry.header.path,
-                    filesize: entry.header.size,
-                }),
-            ) // handle archive entries
-            .on('end', () => {
-                delete model.modelfile;
-                response.send(model);
-            }); // close stream
-    }
-
-    @Patch(':id')
-    @RequireTokenAuthentication()
-    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
-    update(@Param('id') id: string, @Body() updateModelDto: UpdateModelDto) {
-        return this.modelsService.update(+id, updateModelDto);
-    }
-
-    @Delete(':id')
-    @RequireTokenAuthentication()
-    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
-    @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
-    remove(@Param('id') id: string) {
-        return this.modelsService.remove(+id);
+    findWithinBoundary(@Query(BoundaryPipe) boundary: Boundary) { //: Promise<FeatureCollection<Point, Object>> {
+        return this.modelsService.findWithinBoundary(boundary).then(toFeatureCollection);
     }
 
     @Get(':id/tgz')
@@ -150,6 +106,8 @@ export class ModelsController {
         return new StreamableFile(Buffer.from(modelFile.thumbfile, 'base64'));
     }
 
+    @ApiOperation({summary: 'This endpoint redirects to thumb.jpg'})
+    @ApiExcludeEndpoint()
     @Get(':id/thumb')
     @Redirect('./thumb.jpg', 301)
     @ApiMovedPermanentlyResponse({ description: 'Redirects to ./thumb.jpg' })
@@ -171,10 +129,13 @@ export class ModelsController {
             .on('end', () => fileTransmitter.handleClosing(response)); // close stream of notify not found
     }
 
+    @ApiOperation({summary: 'This endpoint redirects to AC3D'})
+    @ApiExcludeEndpoint()
     @Get(['/:id/ac3d', '/:id/ac'])
     @Redirect('./AC3D', 301)
     @ApiMovedPermanentlyResponse({ description: 'Redirects to ./AC3D' })
     getAC3DFromModelFile2(@Param('id') id: string) {}
+
 
     @Get('/:id/model-content/:name')
     @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
@@ -184,7 +145,7 @@ export class ModelsController {
     async getFileFromModelFile(@Param('id') id: string, @Param('name') fileName: string, @Res() response: Response) {
         const result = await this.modelsService.getModelFiles(+id);
         const fileTransmitter = new SingleFileTransmitter().withFileFilter((path) => path == fileName); // send requested file from archive
-
+        
         await new MultiStream(Buffer.from(result.modelfile, 'base64')) // stream archive content
             .on('error', (e) => console.log('error reading stream', e)) // if error in streaming, log
             .pipe(new tar.Parse()) // treat as archive
@@ -202,4 +163,44 @@ export class ModelsController {
         const positions = await this.objectsService.getObjectsByModel(+id, new Paging(offset, limit));
         return Object.assign({}, toFeatureCollection(positions), {model: id});
     }
+
+
+    @Get(':id')
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
+    @ApiOkResponse({ type: Model, description: 'Returns the Model and entries with the given id' })
+    @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
+    async findOne(@Param('id') id: string, @Res() response: Response) {
+        const model = await this.modelsService.findOne(+id, { withModelFile: true, withThumbnail: false });
+        model['content'] = [];
+
+        await new MultiStream(Buffer.from(model.modelfile, 'base64'))
+            .on('error', (e) => console.log('error reading stream', e))
+            .pipe(tar.list()) // treat as archive
+            .on('entry', (entry) =>
+                model['content'].push({
+                    filename: entry.header.path,
+                    filesize: entry.header.size,
+                }),
+            ) // handle archive entries
+            .on('end', () => {
+                delete model.modelfile;
+                response.send(model);
+            }); // close stream
+    }
+
+    @Patch(':id')
+    @RequireTokenAuthentication()
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
+    update(@Param('id') id: string, @Body() updateModelDto: UpdateModelDto, @LoggedInUser() user: User) {
+        return this.modelsService.update(+id, updateModelDto);
+    }
+
+    @Delete(':id')
+    @RequireTokenAuthentication()
+    @ApiParam({ name: 'id', required: true, description: 'Id of the Model' })
+    @ApiNotFoundResponse({ description: 'No Model with the given id is found' })
+    remove(@Param('id') id: string, @LoggedInUser() user: User) {
+        return this.modelsService.remove(+id);
+    }
+
 }

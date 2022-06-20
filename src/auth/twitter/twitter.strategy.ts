@@ -2,10 +2,9 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-twitter';
 import { AuthService } from '../auth.service';
-import { isUrl } from 'src/utils/validations';
-import * as passport from 'passport';
+import { isUrl } from 'src/shared/validations/validations';
+import { SYSTEM_TWITTER } from './twitter.module';
 
-const SYSTEM_TWITTER = 4;
 
 @Injectable()
 export class TwitterAuthStrategyService extends PassportStrategy(Strategy) {
@@ -22,6 +21,7 @@ export class TwitterAuthStrategyService extends PassportStrategy(Strategy) {
             throw new Error("Env property 'API_URL' used for Twitter authentication callback is not valid. Set a correct HTTP(s) url value or disable Twitter authentication.");
         }
     }
+
 
     async validate(request: any, accessToken, tokenSecret, profile): Promise<any> {
         const user = await this.authService.validateUser(SYSTEM_TWITTER, profile.emails[0].value);

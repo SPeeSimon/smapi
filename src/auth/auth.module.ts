@@ -1,4 +1,4 @@
-import { Module, Logger, forwardRef } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { PassportModule } from '@nestjs/passport';
 import { JwtModule } from '@nestjs/jwt';
@@ -6,16 +6,17 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { JwtAuthenticationStrategyService } from './strategies/jwt.strategy';
-import { Author } from 'src/authors/entities/author.entity';
-import { UserAuthenticationMethod } from './entities/UserAuthenticationMethod.entity';
-import { FacebookModule } from './facebook/facebook.module';
-import { GithubModule } from './github/github.module';
-import { GoogleModule } from './google/google.module';
-import { TwitterModule } from './twitter/twitter.module';
-import { GitlabModule } from './gitlab/gitlab.module';
+import { Author } from 'src/dao/entities/author.entity';
+import { UserAuthenticationMethod } from '../dao/entities/UserAuthenticationMethod.entity';
+import { FacebookAuthenticationDetails, FacebookModule } from './facebook/facebook.module';
+import { GithubAuthenticationDetails, GithubModule } from './github/github.module';
+import { GoogleAuthenticationDetails, GoogleModule } from './google/google.module';
+import { TwitterAuthenticationDetails, TwitterModule } from './twitter/twitter.module';
+import { GitlabAuthenticationDetails, GitlabModule } from './gitlab/gitlab.module';
+import { LinkAuthorController } from './link-author.controller';
+import { AuthorsModule } from '../authors/authors.module';
+import { AUTHENTICATION_PROPERTY } from './loggedinuser';
 
-
-export const AUTHENTICATION_PROPERTY = 'auth-user';
 export const JWT_CONSTANTS = {
     secret: () => process.env.JWT_SECRET || 'default secret key',
     ttl: 600,
@@ -23,6 +24,7 @@ export const JWT_CONSTANTS = {
 
 @Module({
     imports: [
+        forwardRef(() => AuthorsModule),
         ConfigModule.forRoot(),
         PassportModule.register({
             defaultStrategy: 'jwt',
@@ -40,18 +42,45 @@ export const JWT_CONSTANTS = {
         forwardRef(() => TwitterModule.registerIfEnabled(process.env.AUTH_TWITTER_ENABLED === 'true')),
         forwardRef(() => GitlabModule.registerIfEnabled(process.env.AUTH_GITLAB_ENABLED === 'true')),
     ],
-    controllers: [AuthController],
+    controllers: [AuthController, LinkAuthorController],
     providers: [
         AuthService,
         // LocalAuthStrategyService,
         JwtAuthenticationStrategyService,
+        {
+            provide: 'SUPPORTED_AUTHENTICATION_STRATEGIES',
+            useFactory: (...args: AuthenticationDetails[]) =>
+                args
+                    .filter((s) => s.code !== -1),
+            inject: [
+                GithubAuthenticationDetails,
+                GoogleAuthenticationDetails,
+                FacebookAuthenticationDetails,
+                TwitterAuthenticationDetails,
+                GitlabAuthenticationDetails,
+                /* Add here another strategy if you implement a new one */
+            ],
+        },
     ],
     exports: [PassportModule, JwtModule, AuthService],
 })
 export class AuthModule {}
 
+
+export interface AuthenticationDetails {
+    get code(): number;
+    get name(): string;
+    get url(): string;
+}
+
+export const NoAuthStrategy = {
+    code: -1,
+    name: '',
+    url: ''
+} as AuthenticationDetails;
+
 /*
- TODO??
+ TODO implement other login possibilities?
  - slack
  - microsoft
  - linkedin

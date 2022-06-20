@@ -1,4 +1,5 @@
-import { Controller, Get } from '@nestjs/common';
+import { Controller, Get, Redirect } from '@nestjs/common';
+import { ApiExcludeEndpoint } from '@nestjs/swagger';
 import { AppService } from './app.service';
 
 @Controller()
@@ -9,4 +10,10 @@ export class AppController {
   getHello(): string {
     return this.appService.getHello();
   }
+
+  @ApiExcludeEndpoint()
+  @Get('/openapi.json')
+  @Redirect('/api-json')
+  getOpenApiJson() {}
+
 }

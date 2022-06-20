@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { FindManyOptions, Repository } from 'typeorm';
-import { Modelgroup } from './entities/modelgroup.entity';
+import { Modelgroup } from '../dao/entities/modelgroup.entity';
 
 @Injectable()
 export class ModelgroupsService {

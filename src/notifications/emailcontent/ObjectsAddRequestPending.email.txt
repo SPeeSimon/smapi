@@ -1,0 +1,9 @@
+Hi,
+
+We would like to let you know that a new object(s) import request is pending. On <%= it.dtg %> UTC, someone from the IP address <%= it.ipaddr %> (<%= it.host %>) <%if (!empty(contrEmail)) { %> and with email address <%~ contrEmail %> <%}%> issued an object(s) import request (#<%= it.request.id %>).
+
+Comment by user: <%= strip_tags(it.request.comment) %>
+
+Now please click the following link to check and confirm or reject the submission: https://scenery.flightgear.org/app.php?c=AddObjectsValidator&a=viewRequest&sig=<%~ it.request.sig %>
+
+<%~ includeFile('./signature.email.txt', {}) %>

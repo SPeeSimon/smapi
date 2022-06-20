@@ -1,0 +1,7 @@
+Hi,
+
+On <%= it.dtg %> UTC, someone from the IP address <%= it.ipaddr %> (<%= it.host %>), which is thought to be you, issued a object(s) addition request (#<%= it.request.id %>).
+
+We would like to let you know that this request has been sent for validation. Allow up to a few days for your request to be processed.
+
+<%~ includeFile('./signature.email.txt', {}) %>

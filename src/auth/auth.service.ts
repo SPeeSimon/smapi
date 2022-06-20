@@ -1,12 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { Author } from 'src/authors/entities/author.entity';
+import { Author } from 'src/dao/entities/author.entity';
 import { getConnection } from 'typeorm';
-import { AUTHENTICATION_PROPERTY, JWT_CONSTANTS } from './auth.module';
+import { JWT_CONSTANTS } from './auth.module';
 import { NoAuthenticationFoundError } from './dto/NoAuthenticationFoundError';
 import { AuthenticationPayload } from './dto/token-payload.dto';
-import { User } from './entities/user.entity';
-import { UserAuthenticationMethod } from './entities/UserAuthenticationMethod.entity';
+import { User } from './dto/User.entity';
+import { AUTHENTICATION_PROPERTY } from "./loggedinuser";
+import { UserAuthenticationMethod } from '../dao/entities/UserAuthenticationMethod.entity';
 
 function convertRawToSingleUserSingleAuth(result: unknown) {
     const user = new User();
@@ -54,6 +55,15 @@ export class AuthService {
         };
     }
 
+    addAuthorAuthentication(authorId: number, authorityId: number) {
+        const entityManager = getConnection().createEntityManager();
+        const userAuth = entityManager.create(UserAuthenticationMethod, {
+            authority: authorityId,
+            lastlogin: new Date(),
+            author: authorId,
+        });
+        return entityManager.insert(UserAuthenticationMethod, userAuth);
+    }
 
     validateUser(authorityId: number, email: string) {
         return getConnection()

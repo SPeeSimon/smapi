@@ -1,6 +1,6 @@
 import { Controller, Get, Param } from '@nestjs/common';
 import { ApiTags, ApiOkResponse, ApiNotFoundResponse } from '@nestjs/swagger';
-import { Modelgroup } from './entities/modelgroup.entity';
+import { Modelgroup } from '../dao/entities/modelgroup.entity';
 import { ModelgroupsService } from './modelgroups.service';
 
 @ApiTags('Modelgroup', 'Models')

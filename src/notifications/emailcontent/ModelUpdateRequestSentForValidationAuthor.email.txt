@@ -1,0 +1,17 @@
+Hi,
+
+On <%= it.dtg %> UTC, someone from the IP address <%= it.ipaddr %> (<%= it.host %>), issued a 3D model update request for your model (#<%= it.request.id %>).
+
+We would like to let you know that this request has been sent for validation.
+
+Family:           <%~ it.newModelMD.modelsGroup.name %>
+[ https://scenery.flightgear.org/app.php?c=Models&a=browse&shared=<%= it.newModelMD.ModelsGroup.Id %> ]
+Path:             <%~ it.newModelMD.filename %>
+Author:           <%~ it.newModelMD.author.name %>
+Contributor email <%~ it.request.contributorEmail %>
+Model name:       <%~ it.newModelMD.name %>
+Description:      <%~ strip_tags(it.newModelMD.description) %>
+Comment by user:  <%~ strip_tags(it.request.comment) %>
+
+
+<%~ includeFile('./signature.email.txt', {}) %>

@@ -1,18 +1,16 @@
-import { isNumber, isString, numberOrDefault, toNumber } from 'src/utils/validations';
+import { isNumber, isString, numberOrDefault, toNumber } from 'src/shared/validations/validations';
 import { SearchFGSObjectDto } from './dto/search-object.dto';
-import { FGSObject } from './entities/object.entity';
+import { FGSObject } from '../dao/entities/object.entity';
 import { Between, SelectQueryBuilder, Like, MoreThanOrEqual, LessThan } from 'typeorm';
-import { Position } from 'geojson';
 import { isPosition } from 'src/shared/GeoJsonUtils';
-import { Model } from 'src/models/entities/model.entity';
+import { Model } from 'src/dao/entities/model.entity';
+import { Modelgroup } from 'src/dao/entities/modelgroup.entity';
 
 const util = require('util');
 const DEFAULT_LIMIT = 20;
 const OFFSET_START = 0;
-const DATE_REGEXP = /[0-9]{4}-[0-1][0-9]-[0-3][0-9]/; // regexp for date formatted: yyyy-mm-dd
 
 export class ObjectSearchQuery {
-
     constructor(private searchCriteria: Partial<SearchFGSObjectDto>, private queryBuilder: SelectQueryBuilder<FGSObject>) {}
 
     private addDescription() {
@@ -41,14 +39,14 @@ export class ObjectSearchQuery {
 
     private addLatitude() {
         if (this.searchCriteria.lat !== undefined && isNumber(this.searchCriteria.lat)) {
-            this.queryBuilder.andWhere(`CAST (ST_Y(wkb_geometry) AS text) like :lat}`, { lat: this.searchCriteria.lat + '%' });
+            this.queryBuilder.andWhere(`CAST (ST_Y(wkb_geometry) AS text) like :lat`, { lat: this.searchCriteria.lat + '%' });
             // this.withFilter("Lat", `CAST (ST_Y(wkb_geometry) AS text) like ${this.currentParamIndex()}`, this.searchCriteria.lat + "%");
         }
     }
 
     private addLongitude() {
         if (this.searchCriteria.lon !== undefined && isNumber(this.searchCriteria.lon)) {
-            this.queryBuilder.andWhere(`CAST (ST_X(wkb_geometry) AS text) like :lon}`, { lon: this.searchCriteria.lon + '%' });
+            this.queryBuilder.andWhere(`CAST (ST_X(wkb_geometry) AS text) like :lon`, { lon: this.searchCriteria.lon + '%' });
             // `CAST (ST_X(wkb_geometry) AS text) like this.searchCriteria.lon + "%");
         }
     }
@@ -65,10 +63,10 @@ export class ObjectSearchQuery {
     }
 
     private addBoundary() {
-        const north = this.searchCriteria.n;
-        const east = this.searchCriteria.e;
-        const south = this.searchCriteria.s;
-        const west = this.searchCriteria.w;
+        const north = this.searchCriteria.north;
+        const east = this.searchCriteria.east;
+        const south = this.searchCriteria.south;
+        const west = this.searchCriteria.west;
         if (isNumber(north) && isNumber(east) && isNumber(south) && isNumber(west)) {
             this.queryBuilder.andWhere(`ST_Within(wkb_geometry, ST_GeomFromText(:boundary, 4326))`, {
                 boundary: util.format(
@@ -132,22 +130,35 @@ export class ObjectSearchQuery {
 
     private addModelgroup() {
         if (this.searchCriteria.modelgroup !== undefined && isNumber(this.searchCriteria.modelgroup)) {
-            this.queryBuilder.andWhere({
-                model: this.queryBuilder
-                    .subQuery()
-                    .select('model.id')
-                    .addFrom(Model, 'model')
-                    .where({ modelgroup: this.searchCriteria.modelgroup }),
-            });
-            //   `ob_model in (SELECT mo_id FROM fgs_models WHERE mo_shared = Number(this.searchCriteria.modelgroup)
+            this.queryBuilder
+                .andWhere(
+                    (qb) =>
+                        'ob_model in ' +
+                        qb
+                            .subQuery()
+                            .select('model_mgf.id')
+                            .addFrom(Model, 'model_mgf')
+                            .where('model_mgf.mo_shared = :modelgroup')
+                            .getQuery(),
+                )
+                .setParameter('modelgroup', this.searchCriteria.modelgroup);
+            //   `ob_model in (SELECT mo_id FROM fgs_models WHERE mo_shared = Number(this.searchCriteria.modelgroup))
+
         } else if (typeof this.searchCriteria.modelgroup === 'string') {
-            this.queryBuilder.andWhere({
-                model: this.queryBuilder
-                    .subQuery()
-                    .select('model.id')
-                    .addFrom(Model, 'model')
-                    .where({ modelgroup: { name: this.searchCriteria.modelgroup } }),
-            });
+            this.queryBuilder
+                .andWhere(
+                    (qb) =>
+                        'ob_model in ' +
+                        qb
+                            .subQuery()
+                            .select('model_mgf.id')
+                            .addFrom(Model, 'model_mgf')
+                            .innerJoin(Modelgroup, 'model_mgf_mg', 'model_mgf.mo_shared=model_mgf_mg.mg_id')
+                            .where('model_mgf_mg.mg_name = :modelgroup')
+                            .getQuery(),
+                )
+                .setParameter('modelgroup', this.searchCriteria.modelgroup);
+            //   `ob_model in (SELECT mo_id FROM fgs_models INNER JOIN fgs_modelgroup mg1 on mo_shared=mg_id WHERE mg_name = this.searchCriteria.modelgroup)
         }
     }
 
@@ -204,25 +215,25 @@ export class ObjectSearchQuery {
         this.queryBuilder.leftJoinAndSelect('FGSObject.model', 'model');
         this.queryBuilder.leftJoinAndSelect('FGSObject.country', 'country');
         this.queryBuilder.where('1=1');
-        this.addDescription()
-        this.addModifedOn()
-        this.addModifiedSince()
-        this.addModifiedBefore()
-        this.addLatitude()
-        this.addLongitude()
-        this.addPoint()
-        this.addBoundary()
-        this.addGndElevation()
-        this.addElevOffset()
-        this.addHeading()
-        this.addCountry()
-        this.addModelId()
-        this.addModelName()
-        this.addModelgroup()
-        this.addObjectgroup()
-        this.addTile()
-        this.addAuthor()
-        this.withOrder()        
-        this.withPaging()
+        this.addDescription();
+        this.addModifedOn();
+        this.addModifiedSince();
+        this.addModifiedBefore();
+        this.addLatitude();
+        this.addLongitude();
+        this.addPoint();
+        this.addBoundary();
+        this.addGndElevation();
+        this.addElevOffset();
+        this.addHeading();
+        this.addCountry();
+        this.addModelId();
+        this.addModelName();
+        this.addModelgroup();
+        this.addObjectgroup();
+        this.addTile();
+        this.addAuthor();
+        this.withOrder();
+        this.withPaging();
     }
 }

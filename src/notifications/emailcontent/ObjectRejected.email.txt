@@ -1,0 +1,10 @@
+Hi,
+
+We are sorry to let you know that the object request #<%= it.request.id %> was rejected.
+
+<%if (it.comment) {%>
+The screener left a comment for you: '<%~ it.comment%>'
+
+<%}%>
+
+<%~ includeFile('./signature.email.txt', {}) %>

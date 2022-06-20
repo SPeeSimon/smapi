@@ -1,0 +1,13 @@
+Hi,
+
+On <%= it.dtg %> UTC, you issued an object(s) import request (#<%= it.request.id %>).
+
+We are sorry to let you know that this request has been rejected.
+
+<%if (it.comment) {%>
+The screener left a comment for you: '<%~ it.comment%>'
+
+<%}%>
+Please do not let this stop you from sending us corrected object locations or models.
+
+<%~ includeFile('./signature.email.txt', {}) %>

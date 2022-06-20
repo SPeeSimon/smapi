@@ -8,7 +8,7 @@ interface FgAirportRunways {
     procedures: [];
 }
 
-@ApiTags('Fligthgear')
+@ApiTags('Flightgear')
 @Controller('navdb')
 export class NavdbController {
     constructor(private readonly navdbService: NavdbService) {}

@@ -2,10 +2,8 @@ import { Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { Strategy } from 'passport-facebook';
 import { AuthService } from '../auth.service';
-import { isUrl } from 'src/utils/validations';
-import * as passport from 'passport';
-
-const SYSTEM_FACEBOOK = 3;
+import { isUrl } from 'src/shared/validations/validations';
+import { SYSTEM_FACEBOOK } from './facebook.module';
 
 @Injectable()
 export class FacebookAuthStrategyService extends PassportStrategy(Strategy) {

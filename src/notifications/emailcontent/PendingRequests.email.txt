@@ -1,0 +1,54 @@
+Hi,
+
+We would like to give you an overview of the remaining pending requests.
+
+<% foreach(requests in it.requests) { %>
+    sig = it.request.sig;
+Request #<%= request.id %>
+=========================================================================================
+<% switch (get_class(request)) {
+    case "model\RequestObjectUpdate":
+%>
+This is an object update request!
+https://scenery.flightgear.org/app.php?c=ObjectValidator&a=viewRequest&sig=<%= sig %>
+<% 
+        break;
+    case "model\RequestObjectDelete":
+%>
+This is an object deletion request!
+https://scenery.flightgear.org/app.php?c=ObjectValidator&a=viewRequest&sig=<%= sig %>
+<%
+        break;
+    case "model\RequestMassiveObjectsAdd":
+%>
+This is an object(s) addition request!
+https://scenery.flightgear.org/app.php?c=AddObjectsValidator&a=viewRequest&sig=<%= sig %>
+<%
+        break;
+    case "model\RequestModelAdd":
+%>
+This is a 3D model addition request!
+https://scenery.flightgear.org/app.php?c=AddModelValidator&a=viewRequest&sig=<%= sig %>
+<%
+        break;
+    case "model\RequestModelUpdate":
+%>
+This is a 3D model update request!
+https://scenery.flightgear.org/app.php?c=UpdateModelValidator&a=viewRequest&sig=<%= sig %>
+<%
+        break;
+     } %>
+<% } %>
+
+<% if (!empty(it.invalidRequests)) { %>
+These are invalid requests :
+<% foreach (invalidReq in it.invalidRequests) { %>
+Request #<%~ invalidReq.id %>" is invalid! <%~ invalidReq.comment %>
+To delete it, click: https://scenery.flightgear.org/app.php?c=GenericValidator&a=rejectRequest&sig=<%= invalidReq.sig %>
+
+<% } %>
+<% } %>
+They should be somewhere in your mails. Please check again.
+
+
+<%~ includeFile('./signature.email.txt', {}) %>

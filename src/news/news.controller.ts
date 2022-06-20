@@ -3,9 +3,9 @@ import { NewsService } from './news.service';
 import { CreateNewsDto } from './dto/create-news.dto';
 import { UpdateNewsDto } from './dto/update-news.dto';
 import { ApiQuery, ApiOperation, ApiOkResponse, ApiBadRequestResponse, ApiNotFoundResponse, ApiTags } from '@nestjs/swagger';
-import { News } from './entities/news.entity';
-import { Paging } from 'src/shared/Paging.dto';
-import { User } from 'src/auth/entities/user.entity';
+import { News } from '../dao/entities/news.entity';
+import { Paging } from 'src/shared/dto/Paging.dto';
+import { User } from 'src/auth/dto/User.entity';
 import { LoggedInUser } from 'src/auth/loggedinuser';
 import { RequireTokenAuthentication } from 'src/auth/auth.decorator';
 
@@ -52,14 +52,14 @@ export class NewsController {
     @ApiOkResponse({ description: "News item is updated and it's content returned" })
     @ApiNotFoundResponse({ description: 'No News item with the given id is found' })
     @ApiBadRequestResponse({ description: "Required values were missing" })
-    update(@Param('id') id: number, @Body() updateNewsDto: UpdateNewsDto) {
+    update(@Param('id') id: number, @Body() updateNewsDto: UpdateNewsDto, @LoggedInUser() user: User) {
         return this.newsService.update(+id, updateNewsDto);
     }
 
     @Delete(':id')
     @RequireTokenAuthentication()
     @ApiOkResponse({ description: "News item is deleted" })
-    remove(@Param('id') id: number) {
+    remove(@Param('id') id: number, @LoggedInUser() user: User) {
         return this.newsService.remove(+id);
     }
 }

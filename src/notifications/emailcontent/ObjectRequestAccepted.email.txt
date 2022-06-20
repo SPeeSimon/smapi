@@ -1,0 +1,11 @@
+Hi,
+
+We would like to let you know that the object (update, deletion) request #<%= it.request.id %> was successfully treated.
+
+<%if (it.comment) {%>
+The screener left a comment for you: '<%~ it.comment%>'
+
+<%}%>
+Please don't forget to use the massive import form rather than the single one if you have many objects to add!
+
+<%~ includeFile('./signature.email.txt', {}) %>

@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Country, UNKNOWN_COUNTRY } from 'src/navaids/entities/country.entity';
+import { Country, UNKNOWN_COUNTRY } from 'src/dao/entities/country.entity';
 
 @Injectable()
 export class CountriesService {

@@ -1,14 +1,13 @@
-import { isNumber, isString, numberOrDefault, toNumber } from 'src/utils/validations';
+import { isNumber, isString, numberOrDefault, toNumber } from 'src/shared/validations/validations';
 import { SearchModelDto } from './dto/search-model.dto';
-import { Model } from './entities/model.entity';
-import { Between, Brackets, In, IsNull, Not, SelectQueryBuilder, Like, MoreThanOrEqual, LessThan } from 'typeorm';
-import { FGSObject } from 'src/objects/entities/object.entity';
-import { Author } from 'src/authors/entities/author.entity';
+import { Model } from '../dao/entities/model.entity';
+import { Brackets, IsNull, SelectQueryBuilder, Like, MoreThanOrEqual, LessThan } from 'typeorm';
+import { FGSObject } from 'src/dao/entities/object.entity';
+import { Author } from 'src/dao/entities/author.entity';
 const util = require('util');
 
 const DEFAULT_LIMIT = 20;
 const OFFSET_START = 0;
-const DATE_REGEXP = /[0-9]{4}-[0-1][0-9]-[0-3][0-9]/; // regexp for date formatted: yyyy-mm-dd
 
 export class ModelSearchQuery {
     constructor(private searchCriteria: Partial<SearchModelDto>, private queryBuilder: SelectQueryBuilder<Model>) {}
@@ -25,9 +24,9 @@ export class ModelSearchQuery {
         }
     }
 
-    forNotes() {
+    forDescription() {
         if (isString(this.searchCriteria.description)) {
-            this.queryBuilder.andWhere({ notes: Like(`%${this.searchCriteria.description}%`) });
+            this.queryBuilder.andWhere({ description: Like(`%${this.searchCriteria.description}%`) });
         }
     }
 
@@ -113,7 +112,7 @@ export class ModelSearchQuery {
                         );
                     }),
                 )
-                .setParameter('authorName', this.searchCriteria.author);
+                .setParameter('authorName', `%${this.searchCriteria.author}%`);
         }
     }
 
@@ -138,10 +137,10 @@ export class ModelSearchQuery {
     }
 
     private addBoundary() {
-        const north = this.searchCriteria.n;
-        const east = this.searchCriteria.e;
-        const south = this.searchCriteria.s;
-        const west = this.searchCriteria.w;
+        const north = this.searchCriteria.north;
+        const east = this.searchCriteria.east;
+        const south = this.searchCriteria.south;
+        const west = this.searchCriteria.west;
         if (isNumber(north) && isNumber(east) && isNumber(south) && isNumber(west)) {
             this.queryBuilder
                 .andWhere(
@@ -200,7 +199,7 @@ export class ModelSearchQuery {
         this.queryBuilder.where('1=1');
         this.forFile();
         this.forName();
-        this.forNotes();
+        this.forDescription();
         this.forCountry();
         this.addBoundary();
         this.forModifedOn();

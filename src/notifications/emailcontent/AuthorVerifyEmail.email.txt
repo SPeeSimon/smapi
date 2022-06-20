@@ -1,0 +1,9 @@
+Hi,
+
+Please verify your email address by following the link below.
+This link is valid for 24 hours.
+
+<%= it.linkUrl %>
+
+
+<%~ includeFile('./signature.email.txt', {}) %>
